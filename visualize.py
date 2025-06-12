@@ -379,25 +379,6 @@ if __name__ == '__main__':
     main()
 
 
-# Example usage as a module:
-def example_usage():
-    """Example of using the generator programmatically."""
-    
-    # Load schema from file
-    schema = load_schema_file('database_schema.json')
-    
-    # Generate DOT content with orthogonal lines
-    dot_content = generate_dot_from_database_schema(schema)
-    
-    # Or use advanced layout
-    # dot_content = generate_dot_from_database_schema_advanced_layout(schema)
-    
-    # Save to file
-    save_dot_file(dot_content, 'my_erd.dot')
-    
-    print("ERD generated successfully!")
-
-
 # For interactive use:
 def generate_erd_from_json_string(json_string: str, output_file: str = 'erd.dot', 
                                  advanced_layout: bool = False) -> str:
