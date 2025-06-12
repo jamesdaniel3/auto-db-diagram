@@ -16,7 +16,7 @@ def run_script_with_args(args):
 @pytest.mark.parametrize("args,expected_msg", [
     ([], "No config file provided"),
     (["/nonexistent/path.json"], "Config file '/nonexistent/path.json' does not exist"),
-    ([f"{CONFIGS_DIR}/not_json.txt"], "is not valid JSON"),
+    ([f"{CONFIGS_DIR}/not_json.txt"], "XXXXXXXXXX"),
     ([f"{CONFIGS_DIR}/missing_fields.json"], "Missing required configuration fields"),
     ([f"{CONFIGS_DIR}/unsupported_db.json"], "Unsupported database type")
 ])
