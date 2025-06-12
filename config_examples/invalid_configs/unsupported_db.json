@@ -1,0 +1,7 @@
+{
+  "DATABASE_TYPE": "oracle",
+  "HOST": "localhost",
+  "PORT": "5432",
+  "USERNAME": "admin",
+  "DATABASE_NAME": "test"
+}

@@ -1,0 +1,4 @@
+{
+  "DATABASE_TYPE": "postgres",
+  "HOST": "localhost"
+}

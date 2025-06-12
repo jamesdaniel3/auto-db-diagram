@@ -1,3 +1,6 @@
 SPECIFICATIONS.md
 CREDENTIALS.md
 TEMP.txt
+config.json
+.pytest_cache/
+tests/__pycache__/
