@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-JSON Database Schema to Graphviz DOT Generator
+JSON Database Schema to Graphviz DOT Generator with Orthogonal Lines
 
 Converts database schema JSON files to DOT format for ERD visualization.
 Usage: python json_to_dot.py <schema.json> [output.dot]
@@ -25,10 +25,15 @@ def generate_dot_from_database_schema(schema_data: Dict[str, Any]) -> str:
     """
     database_name = schema_data['database_info']['database_name'].replace('-', '_')
     
+    # Enhanced DOT configuration for orthogonal lines
     dot_content = f"""digraph {database_name}ERD {{
     rankdir=TB;
+    splines=ortho;
+    concentrate=true;
+    nodesep=0.8;
+    ranksep=0.8;
     node [shape=none, fontname="Arial", fontsize=10];
-    edge [fontname="Arial", fontsize=8, arrowhead=none, arrowtail=none];
+    edge [fontname="Arial", fontsize=8, arrowhead=none, arrowtail=none, minlen=1];
     
 """
     
@@ -41,13 +46,13 @@ def generate_dot_from_database_schema(schema_data: Dict[str, Any]) -> str:
         dot_content += generate_table_definition(table)
         dot_content += '\n'
     
-    # Generate relationships with specific column connections
+    # Generate relationships with edge-to-edge connections
     dot_content += '    // Relationships\n'
     relationships = extract_relationships(tables)
     for rel in relationships:
-        # Connect from specific column to specific column using ports
-        from_port = f"{rel['from']}:{rel['column']}"
-        to_port = f"{rel['to']}:{rel['foreign_column']}"
+        # Connect from column edge to column edge for cleaner lines
+        from_port = f"{rel['from']}:{rel['column']}:e"
+        to_port = f"{rel['to']}:{rel['foreign_column']}:w"
         dot_content += f"    {from_port} -> {to_port};\n"
     
     dot_content += '}'
@@ -57,7 +62,7 @@ def generate_dot_from_database_schema(schema_data: Dict[str, Any]) -> str:
 
 def generate_table_definition(table: Dict[str, Any]) -> str:
     """
-    Generate DOT table definition with single column formatting and ports.
+    Generate DOT table definition with single column formatting and edge ports.
     
     Args:
         table: Table schema dictionary
@@ -68,7 +73,7 @@ def generate_table_definition(table: Dict[str, Any]) -> str:
     table_name = table['name']
     
     table_html = f"""    {table_name} [label=<
-        <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+        <TABLE BORDER="1" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
             <TR><TD BGCOLOR="steelblue" ALIGN="CENTER"><FONT COLOR="white"><B>{table_name}</B></FONT></TD></TR>"""
     
     # Get primary key columns
@@ -82,16 +87,124 @@ def generate_table_definition(table: Dict[str, Any]) -> str:
         data_type = format_data_type(column)
         nullable = ' NN' if column['is_nullable'] == 'NO' else ''
         
-        # Single column with spacing between name and type, add PORT for connections
+        # Single column with spacing between name and type, add PORT for edge connections
         full_text = f"{display_name}{'&nbsp;' * 10}{data_type}{nullable}"
         
-        table_html += f'\n            <TR><TD PORT="{column_name}" ALIGN="LEFT">{full_text}</TD></TR>'
+        # Use compass points (e, w) to connect from table edges instead of inside
+        table_html += f'\n            <TR><TD PORT="{column_name}:e" ALIGN="LEFT">{full_text}</TD></TR>'
     
     table_html += """
         </TABLE>
     >];"""
     
     return table_html
+
+
+def generate_dot_from_database_schema_advanced_layout(schema_data: Dict[str, Any]) -> str:
+    """
+    Alternative version with more advanced layout control for better orthogonal routing.
+    
+    Args:
+        schema_data: Parsed JSON database schema
+        
+    Returns:
+        DOT file content as string
+    """
+    database_name = schema_data['database_info']['database_name'].replace('-', '_')
+    
+    # Advanced layout with subgraphs for better positioning
+    dot_content = f"""digraph {database_name}ERD {{
+    rankdir=TB;
+    splines=ortho;
+    concentrate=true;
+    compound=true;
+    nodesep=1.2;
+    ranksep=1.0;
+    node [shape=none, fontname="Arial", fontsize=10];
+    edge [fontname="Arial", fontsize=8, arrowhead=none, arrowtail=none, 
+          minlen=1, penwidth=1.5];
+    
+    // Graph attributes for better orthogonal routing
+    graph [pad=0.5, margin=0.5];
+    
+"""
+    
+    # Filter out migration tables
+    tables = [table for table in schema_data['tables'] 
+              if not table['name'].startswith('knex_')]
+    
+    # Analyze relationships to group related tables
+    relationships = extract_relationships(tables)
+    table_groups = organize_tables_by_relationships(tables, relationships)
+    
+    # Generate subgraphs for better layout
+    for i, group in enumerate(table_groups):
+        if len(group) > 1:
+            dot_content += f"    subgraph cluster_{i} {{\n"
+            dot_content += f"        style=invis;\n"
+            for table_name in group:
+                table = next(t for t in tables if t['name'] == table_name)
+                dot_content += generate_table_definition(table).replace('    ', '        ')
+                dot_content += '\n'
+            dot_content += "    }\n\n"
+        else:
+            # Single tables outside clusters
+            table = next(t for t in tables if t['name'] == group[0])
+            dot_content += generate_table_definition(table)
+            dot_content += '\n'
+    
+    # Generate relationships
+    dot_content += '    // Relationships\n'
+    for rel in relationships:
+        from_port = f"{rel['from']}:{rel['column']}:e"
+        to_port = f"{rel['to']}:{rel['foreign_column']}:w"
+        dot_content += f"    {from_port} -> {to_port};\n"
+    
+    dot_content += '}'
+    
+    return dot_content
+
+
+def organize_tables_by_relationships(tables: List[Dict[str, Any]], 
+                                   relationships: List[Dict[str, str]]) -> List[List[str]]:
+    """
+    Group tables by their relationships for better layout.
+    
+    Args:
+        tables: List of table dictionaries
+        relationships: List of relationship dictionaries
+        
+    Returns:
+        List of table groups (each group is a list of table names)
+    """
+    # Create adjacency list
+    connections = {}
+    for table in tables:
+        connections[table['name']] = set()
+    
+    for rel in relationships:
+        connections[rel['from']].add(rel['to'])
+        connections[rel['to']].add(rel['from'])
+    
+    # Find connected components (groups of related tables)
+    visited = set()
+    groups = []
+    
+    for table_name in connections:
+        if table_name not in visited:
+            group = []
+            stack = [table_name]
+            
+            while stack:
+                current = stack.pop()
+                if current not in visited:
+                    visited.add(current)
+                    group.append(current)
+                    stack.extend(connections[current] - visited)
+            
+            groups.append(group)
+    
+    return groups
 
 
 def get_primary_key_columns(table: Dict[str, Any]) -> List[str]:
@@ -214,6 +327,8 @@ def main():
                        help='Output DOT file (default: database_erd.dot)')
     parser.add_argument('--png', action='store_true',
                        help='Also generate PNG using dot command')
+    parser.add_argument('--advanced-layout', action='store_true',
+                       help='Use advanced layout with table grouping')
     
     args = parser.parse_args()
     
@@ -224,7 +339,11 @@ def main():
         
         # Generate DOT content
         print("🔄 Generating DOT content...")
-        dot_content = generate_dot_from_database_schema(schema_data)
+        if args.advanced_layout:
+            dot_content = generate_dot_from_database_schema_advanced_layout(schema_data)
+            print("Using advanced layout with table grouping")
+        else:
+            dot_content = generate_dot_from_database_schema(schema_data)
         
         # Save DOT file
         save_dot_file(dot_content, args.output_file)
@@ -267,8 +386,11 @@ def example_usage():
     # Load schema from file
     schema = load_schema_file('database_schema.json')
     
-    # Generate DOT content
+    # Generate DOT content with orthogonal lines
     dot_content = generate_dot_from_database_schema(schema)
+    
+    # Or use advanced layout
+    # dot_content = generate_dot_from_database_schema_advanced_layout(schema)
     
     # Save to file
     save_dot_file(dot_content, 'my_erd.dot')
@@ -277,18 +399,25 @@ def example_usage():
 
 
 # For interactive use:
-def generate_erd_from_json_string(json_string: str, output_file: str = 'erd.dot') -> str:
+def generate_erd_from_json_string(json_string: str, output_file: str = 'erd.dot', 
+                                 advanced_layout: bool = False) -> str:
     """
     Generate ERD from JSON string.
     
     Args:
         json_string: JSON schema as string
         output_file: Output DOT file path
+        advanced_layout: Use advanced layout with table grouping
         
     Returns:
         Generated DOT content
     """
     schema_data = json.loads(json_string)
-    dot_content = generate_dot_from_database_schema(schema_data)
+    
+    if advanced_layout:
+        dot_content = generate_dot_from_database_schema_advanced_layout(schema_data)
+    else:
+        dot_content = generate_dot_from_database_schema(schema_data)
+    
     save_dot_file(dot_content, output_file)
     return dot_content
