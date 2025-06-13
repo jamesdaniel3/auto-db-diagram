@@ -35,15 +35,20 @@ case "$DATABASE_TYPE" in
         ;;
 esac
 
-# Run visualization (optional)
+# Run visualization 
 if [ -f "$SCRIPT_DIR/visualize.py" ]; then
-    echo "Calling visualize.py..."
     if command -v python3 &>/dev/null; then
-        python3 "$SCRIPT_DIR/visualize.py"
+        python3 "$SCRIPT_DIR/visualize.py" "$OUTPUT_FILE"
     else
-        python "$SCRIPT_DIR/visualize.py"
+        python "$SCRIPT_DIR/visualize.py" "$OUTPUT_FILE"
     fi
 else
     echo "Note: visualize.py not found. Output saved to '$OUTPUT_FILE'"
 fi
 
+
+# Generate PNG
+dot -Tpng database_erd.dot -o ERD.png
+
+# On macOS
+open ERD.png

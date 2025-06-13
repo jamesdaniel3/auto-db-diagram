@@ -3,7 +3,7 @@
 run_postgres_extraction() {
     local SCRIPT_DIR="$1"
     local QUERY_FILE="$SCRIPT_DIR/queries/postgres.sql"
-    local OUTPUT_FILE="${DATABASE_NAME}_schema.json"
+    OUTPUT_FILE="${DATABASE_NAME}_schema.json"
 
     if [ ! -f "$QUERY_FILE" ]; then
         error "Query file not found: $QUERY_FILE"

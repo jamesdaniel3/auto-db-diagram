@@ -1,0 +1,3 @@
+python
+tkinter -> add a test for this in the bash file/just let homebrew handle it 
+forcelayout
