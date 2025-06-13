@@ -81,7 +81,7 @@ def generate_table_definition(table: Dict[str, Any]) -> str:
         column_name = column['column_name']
         is_primary_key = column_name in primary_keys
         
-        display_name = f"{column_name} 🔑" if is_primary_key else column_name
+        display_name = f"{column_name} (PK)" if is_primary_key else column_name
         data_type = format_data_type(column)
         nullable = ' NN' if column['is_nullable'] == 'NO' else ''
         
