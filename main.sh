@@ -46,3 +46,9 @@ else
     echo "Note: visualize.py not found. Output saved to '$OUTPUT_FILE'"
 fi
 
+
+# Generate PNG
+dot -Tpng database_erd.dot -o ERD.png
+
+# On macOS
+open ERD.png
