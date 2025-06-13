@@ -22,13 +22,13 @@ def generate_dot_from_database_schema(schema_data: Dict[str, Any]) -> str:
     Returns:
         DOT file content as string
     """
-    database_name = schema_data['database_info']['database_name'].replace('-', '_')
+    database_name = schema_data['database_info']['database_name'].replace('-', '_')  
     
     dot_content = f"""digraph {database_name}ERD {{
     rankdir=TB;
     concentrate=true;
-    nodesep=1.0;
-    ranksep=1.0;
+    nodesep=.25;
+    ranksep=.25;
     compound=true;
     node [shape=none, fontname="Arial", fontsize=10];
     edge [fontname="Arial", fontsize=8, arrowhead=none, arrowtail=none];
@@ -60,7 +60,7 @@ def generate_dot_from_database_schema(schema_data: Dict[str, Any]) -> str:
 
 def generate_table_definition(table: Dict[str, Any]) -> str:
     """
-    Generate DOT table definition with single column formatting and ports.
+    Generate DOT table definition with proper left-right column alignment.
     
     Args:
         table: Table schema dictionary
@@ -72,7 +72,7 @@ def generate_table_definition(table: Dict[str, Any]) -> str:
     
     table_html = f"""    {table_name} [label=<
         <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
-            <TR><TD BGCOLOR="steelblue" ALIGN="CENTER"><FONT COLOR="white"><B>{table_name}</B></FONT></TD></TR>"""
+            <TR><TD COLSPAN="2" BGCOLOR="steelblue" ALIGN="CENTER"><FONT COLOR="white"><B>{table_name}</B></FONT></TD></TR>"""
     
     # Get primary key columns
     primary_keys = get_primary_key_columns(table)
@@ -85,10 +85,10 @@ def generate_table_definition(table: Dict[str, Any]) -> str:
         data_type = format_data_type(column)
         nullable = ' NN' if column['is_nullable'] == 'NO' else ''
         
-        # Single column with spacing between name and type, add PORT for connections
-        full_text = f"{display_name}{'&nbsp;' * 10}{data_type}{nullable}"
+        # Use two columns: left for name, right for type/constraints
+        type_info = f"{data_type}{nullable}"
         
-        table_html += f'\n            <TR><TD PORT="{column_name}" ALIGN="LEFT">{full_text}</TD></TR>'
+        table_html += f'\n            <TR><TD PORT="{column_name}" ALIGN="LEFT">{display_name}</TD><TD ALIGN="RIGHT">{type_info}</TD></TR>'
     
     table_html += """
         </TABLE>
