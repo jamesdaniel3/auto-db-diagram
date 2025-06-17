@@ -222,16 +222,16 @@ def main():
     
     try:
         # Load and process schema
-        print(f"📖 Loading schema from: {args.input_file}")
+        print(f"Loading schema from: {args.input_file}")
         schema_data = load_schema_file(args.input_file)
         
         # Generate DOT content
-        print("🔄 Generating DOT content...")
+        print("Generating DOT content...")
         dot_content = generate_dot_from_database_schema(schema_data)
         
         # Save DOT file
         save_dot_file(dot_content, args.output_file)
-        print(f"✅ Generated DOT file: {args.output_file}")
+        print(f"Generated DOT file: {args.output_file}")
         
         # Optionally generate PNG
         if args.png:
@@ -240,22 +240,22 @@ def main():
             try:
                 subprocess.run(['dot', '-Tpng', args.output_file, '-o', png_file], 
                              check=True)
-                print(f"🖼️  Generated PNG file: {png_file}")
+                print(f"Generated PNG file: {png_file}")
             except subprocess.CalledProcessError:
                 print("⚠️  Failed to generate PNG. Make sure Graphviz is installed.")
             except FileNotFoundError:
-                print("⚠️  Graphviz 'dot' command not found. Install Graphviz to generate images.")
+                print("Graphviz 'dot' command not found. Install Graphviz to generate images.")
         
-        print(f"🔧 To generate image manually: dot -Tpng {args.output_file} -o diagram.png")
+        print(f"To generate image manually: dot -Tpng {args.output_file} -o diagram.png")
         
     except FileNotFoundError as e:
-        print(f"❌ Error: {e}")
+        print(f"Error: {e}")
         sys.exit(1)
     except json.JSONDecodeError as e:
-        print(f"❌ JSON Error: {e}")
+        print(f"JSON Error: {e}")
         sys.exit(1)
     except Exception as e:
-        print(f"❌ Unexpected error: {e}")
+        print(f"Unexpected error: {e}")
         sys.exit(1)
 
 
