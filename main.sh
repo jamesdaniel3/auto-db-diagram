@@ -18,7 +18,6 @@ cleanup() {
 }
 
 # exit scenarios
-trap cleanup EXIT      # normal exit
 trap cleanup INT       # ctrl+C
 trap cleanup TERM      # termination signal
 trap cleanup QUIT      # quit signal
