@@ -34,7 +34,7 @@ EXAMPLES:
     db-diagram -h my-db-config.json    # Use existing config
 
 CONFIG FILE FORMAT:
-    See example config at: https://github.com/jamesdaniel3/auto-db-diagram/blob/main/example-config.json
+    See example config at: https://github.com/jamesdaniel3/auto-db-diagram/blob/main/example_config.json
 
 EOF
 }
