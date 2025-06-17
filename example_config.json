@@ -1,0 +1,9 @@
+{
+  "DATABASE_TYPE": "postgres",
+  "CONNECTION_INFO": {
+    "HOST": "localhost",
+    "PORT": 5432,
+    "USERNAME": "postgres",
+    "DATABASE_NAME": "mind-map-development"
+  }
+}

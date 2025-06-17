@@ -4,3 +4,5 @@ TEMP.txt
 config.json
 .pytest_cache/
 tests/__pycache__/
+bash_cheatsheet.md
+.shellcheckrc

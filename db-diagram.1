@@ -1,0 +1,104 @@
+.TH DB-DIAGRAM 1 "June 2025" "db-diagram 1.0" "User Commands"
+.SH NAME
+db-diagram \- Generate ERD diagrams from live database connections
+.SH SYNOPSIS
+.B db-diagram
+[\fIOPTIONS\fR]
+.br
+.B db-diagram
+\fB\-h\fR|\fB\-\-headless\fR \fI<path/to/config.json>\fR
+.SH DESCRIPTION
+.B db-diagram
+is a tool that connects to live databases and generates Entity Relationship Diagrams (ERDs).
+It supports both interactive mode for guided setup and headless mode using configuration files.
+
+The tool extracts database schema information and generates visual diagrams in PNG format
+using Graphviz dot notation.
+.SH OPTIONS
+.TP
+.BR \-h ", " \-\-headless " " \fI<path/to/config.json>\fR
+Run in headless mode using the specified JSON configuration file.
+.TP
+.BR \-\-help
+Display help information and exit.
+.SH EXAMPLES
+.TP
+.B db-diagram
+Run in interactive mode with guided database connection setup.
+.TP
+.B db-diagram --headless <path/to/config.json>
+Generate diagram using existing configuration file.
+.SH CONFIGURATION
+Configuration files should be in JSON format with the following structure:
+.PP
+.RS
+.nf
+{
+  "database_type": "postgres",
+  "connection_info": {
+    "host": "localhost",
+    "port": 5432,
+    "username": "dbuser",
+    "database_name": "mydb",
+    "password": "secret"
+  },
+  "output_file": "schema.json"
+}
+.fi
+.RE
+.SH SUPPORTED DATABASES
+.TP
+.B PostgreSQL
+Full support for PostgreSQL databases (version 9.0+)
+.SH FILES
+.TP
+.I database_schema.json
+Default output file containing extracted schema information
+.TP
+.I database_erd.dot
+Generated Graphviz dot file
+.TP
+.I ERD.png
+Generated diagram image
+.SH DEPENDENCIES
+.TP
+.B psql
+PostgreSQL command-line client (for PostgreSQL databases)
+.TP
+.B jq
+JSON processor for configuration parsing
+.TP
+.B dot
+Graphviz dot command for diagram generation
+.SH EXIT STATUS
+.TP
+.B 0
+Success
+.TP
+.B 1
+General error (missing dependencies, invalid config, connection failure)
+.SH EXAMPLES
+Connect to local PostgreSQL database:
+.PP
+.RS
+.nf
+db-diagram
+# Follow interactive prompts
+.fi
+.RE
+
+Use existing configuration:
+.PP
+.RS
+.nf
+db-diagram --headless production-db.json
+.fi
+.RE
+.SH SEE ALSO
+.BR psql (1),
+.BR jq (1),
+.BR dot (1)
+.SH BUGS
+Report bugs or request features at: https://github.com/jamesdaniel3/auto-db-diagram/issues
+.SH AUTHOR
+James Daniel <jamesmd333@gmail.com>

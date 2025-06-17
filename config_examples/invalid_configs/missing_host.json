@@ -1,0 +1,8 @@
+{
+  "database_type": "postgres",
+  "connection_info": {
+    "port": 5432,
+    "username": "test",
+    "database_name": "test"
+  }
+}

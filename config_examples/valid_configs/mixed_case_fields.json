@@ -1,0 +1,9 @@
+{
+  "Database_Type": "postgres",
+  "Connection_Info": {
+    "HOST": "localhost",
+    "PORT": 5432,
+    "USERNAME": "postgres",
+    "DATABASE_NAME": "test_db"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "database_type": "oracle",
+  "connection_info": {
+    "host": "localhost",
+    "port": 1521,
+    "username": "test",
+    "database_name": "test"
+  }
+}
