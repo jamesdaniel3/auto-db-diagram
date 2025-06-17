@@ -2,54 +2,135 @@
 
 set -e
 
-# Get the absolute path to the directory where main.sh resides
+# get the absolute path to the directory where main.sh resides
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Load libraries
+# load libraries
 source "$SCRIPT_DIR/lib/error_handling.sh"
 source "$SCRIPT_DIR/lib/tools_check.sh"
 source "$SCRIPT_DIR/lib/config_parser.sh"
 source "$SCRIPT_DIR/lib/validate_config.sh"
+source "$SCRIPT_DIR/lib/interactive_mode.sh"
 
-# Check input
-[ $# -eq 0 ] && error "No config file provided. Usage: $0 <path/to/config.json>"
+show_usage() {
+    echo "Invalid usage of db-diagram, run man db-diagram to see a man page"
+    exit 1
+}
 
-CONFIG_FILE="$1"
-[ ! -f "$CONFIG_FILE" ] && error "Config file '$CONFIG_FILE' does not exist"
+run_headless_mode() {
+    local config_file="$1"
 
-check_tool jq
-check_tool psql
+    [ ! -f "$config_file" ] && error "Config file '$config_file' does not exist"
 
-# Parse and validate config
-parse_config "$CONFIG_FILE"
-validate_config
+    check_tool jq
+    check_tool psql
 
-# Load DB-specific handlers
-case "$DATABASE_TYPE" in
-    postgres)
-        source "$SCRIPT_DIR/lib/database/postgres.sh"
-        run_postgres_extraction "$SCRIPT_DIR"
+    parse_config "$config_file"
+    validate_config
+
+    # load DB-specific handlers
+    case "$DATABASE_TYPE" in
+        postgres)
+            source "$SCRIPT_DIR/lib/database/postgres.sh"
+            run_postgres_extraction "$SCRIPT_DIR"
+            ;;
+        *)
+            error "Unsupported database type: $DATABASE_TYPE"
+            ;;
+    esac
+
+    # run visualization 
+    if [ -f "$SCRIPT_DIR/visualize.py" ]; then
+        if command -v python3 &>/dev/null; then
+            python3 "$SCRIPT_DIR/visualize.py" "$OUTPUT_FILE"
+        else
+            python "$SCRIPT_DIR/visualize.py" "$OUTPUT_FILE"
+        fi
+        rm "${OUTPUT_FILE}"
+    else
+        echo "Note: visualize.py not found. Output saved to '$OUTPUT_FILE'"
+    fi
+
+
+    # generate PNG
+    dot -Tpng database_erd.dot -o ERD.png
+
+    # on macOS
+    open ERD.png
+}
+
+run_interactive_mode() {
+    check_tool psql
+
+    get_database_config
+
+    local temp_config
+    temp_config=$(mktemp) || error "Failed to create temporary file"
+    
+    create_temp_config "$temp_config"
+
+    parse_config "$temp_config"
+    validate_config
+
+    # load DB-specific handlers
+    case "$DATABASE_TYPE" in
+        postgres)
+            source "$SCRIPT_DIR/lib/database/postgres.sh"
+            run_postgres_extraction "$SCRIPT_DIR"
+            ;;
+        *)
+            error "Unsupported database type: $DATABASE_TYPE"
+            ;;
+    esac
+    
+    # run visualization 
+    if [ -f "$SCRIPT_DIR/visualize.py" ]; then
+        if command -v python3 &>/dev/null; then
+            python3 "$SCRIPT_DIR/visualize.py" "$OUTPUT_FILE"
+        else
+            python "$SCRIPT_DIR/visualize.py" "$OUTPUT_FILE"
+        fi
+        rm "$OUTPUT_FILE"
+    else
+        echo "Note: visualize.py not found. Output saved to '$OUTPUT_FILE'"
+    fi
+    
+    # generate PNG
+    dot -Tpng database_erd.dot -o ERD.png
+    
+    # on macOS
+    open ERD.png
+    
+    # clean up temporary config
+    rm "$temp_config"
+}
+
+# parse command line args
+case $# in 
+    0)
+        # run in interactive mode 
+        run_interactive_mode
+        ;;
+    2)
+        # confirm headless flag and run headless mode
+        if [[ "$1" == "--headless" || "$1" == "-h" ]]; then
+            run_headless_mode "$2"
+        else 
+            show_usage
+        fi
+        ;;
+    1)
+        if [[ "$1" == "--help" ]]; then
+            # need to implement help flag
+            show_usage
+        else 
+            show_usage
+        fi
         ;;
     *)
-        error "Unsupported database type: $DATABASE_TYPE"
+        # invalid number of args
+        show_usage
         ;;
+
 esac
 
-# Run visualization 
-if [ -f "$SCRIPT_DIR/visualize.py" ]; then
-    if command -v python3 &>/dev/null; then
-        python3 "$SCRIPT_DIR/visualize.py" "$OUTPUT_FILE"
-    else
-        python "$SCRIPT_DIR/visualize.py" "$OUTPUT_FILE"
-    fi
-    rm $OUTPUT_FILE
-else
-    echo "Note: visualize.py not found. Output saved to '$OUTPUT_FILE'"
-fi
-
-
-# Generate PNG
-dot -Tpng database_erd.dot -o ERD.png
-
-# On macOS
-open ERD.png
