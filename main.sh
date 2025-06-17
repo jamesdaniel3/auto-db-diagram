@@ -66,7 +66,7 @@ run_interactive_mode() {
 
     local temp_config
     temp_config=$(mktemp) || error "Failed to create temporary file"
-    
+
     create_temp_config "$temp_config"
 
     parse_config "$temp_config"
