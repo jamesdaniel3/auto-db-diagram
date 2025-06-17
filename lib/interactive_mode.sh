@@ -33,7 +33,7 @@ show_database_menu() {
         tput cup $((BASH_LINENO[1] + 2)) 0
 
         for i in "${!options[@]}"; do
-            if [ $i -eq $selected ]; then
+            if [ "$i" -eq "${selected}" ]; then
                 # green circle and highlighted text for selected item
                 echo -e "  \033[32m●\033[0m \033[32m${options[$i]}\033[0m"
             else
@@ -61,16 +61,16 @@ show_database_menu() {
                             selected=$((total - 1))  
                         fi
 
-                        tput cuu $total
+                        tput cuu "${total}"
                         draw_menu
                         ;;
                     '[B') # down arrow 
                         ((selected++))
-                        if [ $selected -ge $total ]; then
+                        if [ $selected -ge "${total}" ]; then
                             selected=0
                         fi
 
-                        tput cuu $total
+                        tput cuu "${total}"
                         draw_menu
                         ;;
                 esac
@@ -89,11 +89,11 @@ show_database_menu() {
 }
 
 get_postgres_config() {
-    read -p "Enter your database host (default: localhost): " DB_HOST
+    read -p -r "Enter your database host (default: localhost): " DB_HOST
     [ -z "$DB_HOST" ] && DB_HOST="local_host"
 
     while true; do
-        read -p "Enter your database port (default: 5432): " DB_PORT
+        read -p -r "Enter your database port (default: 5432): " DB_PORT
         [ -z "$DB_PORT" ] && DB_PORT="5432"
 
         if [[ "$DB_PORT" =~ ^[0-9]+$ ]] && [ "$DB_PORT" -ge 1 ] && [ "$DB_PORT" -le 65535 ]; then
@@ -104,7 +104,7 @@ get_postgres_config() {
     done
 
     while true; do
-        read -p "Enter your databse username: " DB_USERNAME
+        read -p -r "Enter your database username: " DB_USERNAME
         if [ -n "$DB_USERNAME" ]; then
             break
         else 
@@ -113,7 +113,7 @@ get_postgres_config() {
     done
 
     while true; do
-        read -p "Enter your database name: " DB_NAME
+        read -p -r "Enter your database name: " DB_NAME
         if [ -n "$DB_NAME" ]; then 
             break
         else
@@ -122,7 +122,7 @@ get_postgres_config() {
     done
 
     echo
-    read -s -p "Enter your database password (press Enter if none required): " DB_PASSWORD
+    read -s -p -r "Enter your database password (press Enter if none required): " DB_PASSWORD
     echo
 
 
@@ -133,7 +133,7 @@ get_database_config() {
     
     show_database_menu
 
-    case "$DATABSE_TYPE" in
+    case "$DATABASE_TYPE" in
         postgres)
             get_postgres_config
             ;;
