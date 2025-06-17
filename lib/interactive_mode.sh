@@ -96,11 +96,11 @@ show_database_menu() {
 }
 
 get_postgres_config() {
-    read -p -r "Enter your database host (default: localhost): " DB_HOST
-    [ -z "$DB_HOST" ] && DB_HOST="local_host"
+    read -rp "Enter your database host (default: localhost): " DB_HOST
+    [ -z "$DB_HOST" ] && DB_HOST="localhost"
 
     while true; do
-        read -p -r "Enter your database port (default: 5432): " DB_PORT
+        read -rp "Enter your database port (default: 5432): " DB_PORT
         [ -z "$DB_PORT" ] && DB_PORT="5432"
 
         if [[ "$DB_PORT" =~ ^[0-9]+$ ]] && [ "$DB_PORT" -ge 1 ] && [ "$DB_PORT" -le 65535 ]; then
@@ -111,7 +111,7 @@ get_postgres_config() {
     done
 
     while true; do
-        read -p -r "Enter your database username: " DB_USERNAME
+        read -rp "Enter your database username: " DB_USERNAME
         if [ -n "$DB_USERNAME" ]; then
             break
         else 
@@ -120,7 +120,7 @@ get_postgres_config() {
     done
 
     while true; do
-        read -p -r "Enter your database name: " DB_NAME
+        read -rp "Enter your database name: " DB_NAME
         if [ -n "$DB_NAME" ]; then 
             break
         else
@@ -128,8 +128,7 @@ get_postgres_config() {
         fi
     done
 
-    echo
-    read -s -p -r "Enter your database password (press Enter if none required): " DB_PASSWORD
+    read -s -rp "Enter your database password (press Enter if none required): " DB_PASSWORD
     echo
 
 
@@ -159,12 +158,12 @@ create_temp_config() {
             cat > "$config_file" << EOF
 {
     "database_type": "postgres",
-    "connection": {
-        "host": "$DB_HOST",
-        "port": $DB_PORT,
-        "username": "$DB_USERNAME",
-        "database": "$DB_NAME",
-        "password": "$DB_PASSWORD"
+    "connection_info": {
+        "HOST": "$DB_HOST",
+        "PORT": $DB_PORT,
+        "USERNAME": "$DB_USERNAME",
+        "DATABASE_NAME": "$DB_NAME",
+        "PASSWORD": "$DB_PASSWORD"
     },
     "output_file": "database_schema.json"
 }
