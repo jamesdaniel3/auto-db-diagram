@@ -7,9 +7,18 @@ DB_USERNAME=""
 DB_NAME=""
 DB_PASSWORD=""
 
-declare -A DATABASE_TYPES=(
-    ["postgres"]="PostgreSQL"
-)
+get_database_display_name() {
+    # add more as needed
+    case "$1" in
+        postgres) echo "PostgreSQL" ;;
+        mysql) echo "MySQL" ;;
+        sqlite) echo "SQLite" ;;
+        *) echo "Unknown Database" ;;
+    esac
+}
+
+# available database types
+DATABASE_KEYS=("postgres")  # add more as needed
 
 show_database_menu() {
     echo "Select the type of database you want to connect to?"
@@ -18,10 +27,10 @@ show_database_menu() {
     local options=()
     local keys=()
 
-    for key in "${!DATABASE_TYPES[@]}"; do 
-        options+=("${DATABASE_TYPES[$key]}")
+    for key in "${DATABASE_KEYS[@]}"; do 
+        options+=("$(get_database_display_name "$key")")
         keys+=("$key")
-    done 
+    done
 
     local selected=0
     local total=${#options[@]}
@@ -30,8 +39,6 @@ show_database_menu() {
     tput civis 
 
     draw_menu() {
-        tput cup $((BASH_LINENO[1] + 2)) 0
-
         for i in "${!options[@]}"; do
             if [ "$i" -eq "${selected}" ]; then
                 # green circle and highlighted text for selected item
