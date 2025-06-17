@@ -42,6 +42,7 @@ if [ -f "$SCRIPT_DIR/visualize.py" ]; then
     else
         python "$SCRIPT_DIR/visualize.py" "$OUTPUT_FILE"
     fi
+    rm $OUTPUT_FILE
 else
     echo "Note: visualize.py not found. Output saved to '$OUTPUT_FILE'"
 fi
