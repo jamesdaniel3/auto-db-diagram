@@ -12,10 +12,34 @@ source "$SCRIPT_DIR/lib/config_parser.sh"
 source "$SCRIPT_DIR/lib/validate_config.sh"
 source "$SCRIPT_DIR/lib/interactive_mode.sh"
 
-show_usage() {
-    echo "Invalid usage of db-diagram, run man db-diagram to see a man page"
+show_usage_error_message() {
+    echo "Invalid usage of db-diagram, run db-diagram --help for more info or man db-diagram for a full manpage "
     exit 1
 }
+
+show_help_message() {
+    cat << EOF
+db-diagram - Generate ERD diagrams from live database connections
+
+USAGE:
+    db-diagram                          # Interactive mode
+    db-diagram --headless CONFIG_FILE  # Headless mode with config
+
+OPTIONS:
+    -h, --headless     Use existing JSON config file
+    --help             Show this help message
+
+EXAMPLES:
+    db-diagram                          # Guided setup
+    db-diagram -h my-db-config.json    # Use existing config
+
+CONFIG FILE FORMAT:
+    See example config at: https://github.com/jamesdaniel3/auto-db-diagram/blob/main/example-config.json
+
+EOF
+}
+
+
 
 run_headless_mode() {
     local config_file="$1"
@@ -116,20 +140,20 @@ case $# in
         if [[ "$1" == "--headless" || "$1" == "-h" ]]; then
             run_headless_mode "$2"
         else 
-            show_usage
+            show_usage_error_message
         fi
         ;;
     1)
         if [[ "$1" == "--help" ]]; then
             # need to implement help flag
-            show_usage
+            show_help_message
         else 
-            show_usage
+            show_usage_error_message
         fi
         ;;
     *)
         # invalid number of args
-        show_usage
+        show_usage_error_message
         ;;
 
 esac
