@@ -96,6 +96,7 @@ show_database_menu() {
 }
 
 get_postgres_config() {
+    tput cnorm
     read -rp "Enter your database host (default: localhost): " DB_HOST
     [ -z "$DB_HOST" ] && DB_HOST="localhost"
 
