@@ -12,6 +12,17 @@ source "$SCRIPT_DIR/lib/config_parser.sh"
 source "$SCRIPT_DIR/lib/validate_config.sh"
 source "$SCRIPT_DIR/lib/interactive_mode.sh"
 
+cleanup() {
+    tput cnorm  # restore cursor in the event that the user quits while cursor is hidden
+    exit 0
+}
+
+# exit scenarios
+trap cleanup EXIT      # normal exit
+trap cleanup INT       # ctrl+C
+trap cleanup TERM      # termination signal
+trap cleanup QUIT      # quit signal
+
 show_usage_error_message() {
     echo "Invalid usage of db-diagram, run db-diagram --help for more info or man db-diagram for a full manpage "
     exit 1
