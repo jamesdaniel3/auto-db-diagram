@@ -22,8 +22,8 @@ show_help_message() {
 db-diagram - Generate ERD diagrams from live database connections
 
 USAGE:
-    db-diagram                          # Interactive mode
-    db-diagram --headless CONFIG_FILE  # Headless mode with config
+    db-diagram                                   # Interactive mode
+    db-diagram --headless <path/to/config.json>  # Headless mode with config
 
 OPTIONS:
     -h, --headless     Use existing JSON config file
