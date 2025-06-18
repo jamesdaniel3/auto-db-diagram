@@ -10,11 +10,11 @@ jobs:
         include:
           # macOS Intel
           - os: macos-13
+            arch: intel
 
           # macOS Apple Silicon
           - os: macos-14
-          - os: macos-15
-          - os: macos-latest
+            arch: arm64
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -95,11 +95,11 @@ jobs:
           {
             "DATABASE_TYPE": "postgres",
             "CONNECTION_INFO": {
-              "host": "localhost",
-              "port": 5432,
-              "database": "testdb",
-              "username": "testuser",
-              "password": "testpassword"
+              "HOST": "localhost",
+              "PORT": 5432,
+              "USERNAME": "testuser",
+              "DATABASE_NAME": "testdb",
+              "PASSWORD": "testpassword"
             }
           }
           EOF
@@ -130,7 +130,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: db-diagram-${{ matrix.os }}-${{ runner.arch }}
+          name: db-diagram-${{ matrix.os }}-${{ matrix.arch }}
           path: |
             *.png
             **/*.png
