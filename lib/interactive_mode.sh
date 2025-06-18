@@ -18,7 +18,7 @@ get_database_display_name() {
 }
 
 # available database types
-DATABASE_KEYS=("postgres")  # add more as needed
+DATABASE_KEYS=("postgres" "sqlite")  # add more as needed
 
 show_database_menu() {
     echo "Select the type of database you want to connect to?"
@@ -131,8 +131,18 @@ get_postgres_config() {
 
     read -s -rp "Enter your database password (press Enter if none required): " DB_PASSWORD
     echo
+}
 
-
+get_sqlite_config() {
+    tput cnorm
+    while true; do
+        read -rp "Enter the file path to your .db file: " DB_LOCATION
+        if [ -n "$DB_LOCATION" ]; then
+            break
+        else 
+            echo "Database location is required."
+        fi
+    done
 }
 
 get_database_config() {
@@ -143,6 +153,9 @@ get_database_config() {
     case "$DATABASE_TYPE" in
         postgres)
             get_postgres_config
+            ;;
+        sqlite)
+            get_sqlite_config
             ;;
         *)
             error "Configuration for database type '$DATABASE_TYPE' is not currently supported"
