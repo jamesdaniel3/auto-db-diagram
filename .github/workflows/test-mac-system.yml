@@ -137,15 +137,16 @@ jobs:
             exit 1
           fi
 
-      - name: Upload generated diagram as artifact
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: db-diagram-${{ matrix.os }}-${{ matrix.arch }}
-          path: |
-            *.png
-            **/*.png
-          if-no-files-found: warn
+      # removed to avoid paying for storage
+      # - name: Upload generated diagram as artifact
+      #   uses: actions/upload-artifact@v4
+      #   if: always()
+      #   with:
+      #     name: db-diagram-${{ matrix.os }}-${{ matrix.arch }}
+      #     path: |
+      #       *.png
+      #       **/*.png
+      #     if-no-files-found: warn
 
       - name: Stop PostgreSQL
         if: always()
