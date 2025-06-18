@@ -136,8 +136,8 @@ get_postgres_config() {
 get_sqlite_config() {
     tput cnorm
     while true; do
-        read -rp "Enter the file path to your .db file: " DB_LOCATION
-        if [ -n "$DB_LOCATION" ]; then
+        read -rp "Enter the file path to your .db file: " DATABASE_LOCATION
+        if [ -n "$DATABASE_LOCATION" ]; then
             break
         else 
             echo "Database location is required."
@@ -188,7 +188,7 @@ EOF
 {
     "database_type": "sqlite",
     "connection_info": {
-        "DB_LOCATION": "$DB_LOCATION",
+        "DATABASE_LOCATION": "$DATABASE_LOCATION",
     },
     "output_file": "database_schema.json"
 }
