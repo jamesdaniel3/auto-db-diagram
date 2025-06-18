@@ -183,6 +183,17 @@ create_temp_config() {
 }
 EOF
             ;;
+        sqlite)
+            cat > "$config_file" << EOF
+{
+    "database_type": "sqlite",
+    "connection_info": {
+        "DB_LOCATION": "$DB_LOCATION",
+    },
+    "output_file": "database_schema.json"
+}
+EOF
+            ;;
         *)
             error "Config generation for database type '$DATABASE_TYPE' is not implemented yet"
             exit 1
