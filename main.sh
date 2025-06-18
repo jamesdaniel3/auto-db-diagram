@@ -49,15 +49,126 @@ CONFIG FILE FORMAT:
 EOF
 }
 
+open_image_if_possible() {
+    local image_file="$1"
+    
+    # Skip opening if in CI/headless environment
+    if [ -n "$CI" ] || [ -n "$GITHUB_ACTIONS" ]; then
+        echo "Running in CI environment - skipping image viewer"
+        return 0
+    fi
+    
+    if [ ! -f "$image_file" ]; then
+        echo "Warning: Image file '$image_file' not found"
+        return 1
+    fi
+    
+    echo "Attempting to open ERD diagram..."
+    
+    # Detect OS and try appropriate open command
+    case "$(uname -s)" in
+        Darwin)
+            # macOS
+            if command -v open >/dev/null 2>&1; then
+                open "$image_file" && echo "Opened $image_file with default viewer"
+            else
+                echo "Note: 'open' command not available on macOS"
+            fi
+            ;;
+        Linux)
+            # Linux - try various methods
+            if command -v xdg-open >/dev/null 2>&1 && [ -n "$DISPLAY" ]; then
+                xdg-open "$image_file" && echo "Opened $image_file with default viewer"
+            elif command -v gnome-open >/dev/null 2>&1 && [ -n "$DISPLAY" ]; then
+                gnome-open "$image_file" && echo "Opened $image_file with GNOME viewer"
+            elif command -v kde-open >/dev/null 2>&1 && [ -n "$DISPLAY" ]; then
+                kde-open "$image_file" && echo "Opened $image_file with KDE viewer"
+            else
+                echo "Note: No GUI available or display not set. $image_file generated successfully."
+                echo "To view the image manually:"
+                echo "  - Copy $image_file to your local machine"
+                echo "  - Or use: display $image_file (if ImageMagick is installed)"
+                echo "  - Or use: feh $image_file (if feh is installed)"
+            fi
+            ;;
+        *)
+            echo "Note: Unknown OS. $image_file generated successfully at $(pwd)/$image_file"
+            ;;
+    esac
+}
 
+generate_erd_diagram() {
+    local dot_file="database_erd.dot"
+    local png_file="ERD.png"
+    
+    if [ ! -f "$dot_file" ]; then
+        echo "❌ DOT file '$dot_file' not found"
+        echo "Make sure visualize.py successfully generated the DOT file"
+        return 1
+    fi
+    
+    echo "Generating PNG from DOT file..."
+    if dot -Tpng "$dot_file" -o "$png_file"; then
+        echo "ERD diagram generated"
+        
+        # show file info
+        if [ -f "$png_file" ]; then
+            echo "File size: $(ls -lh "$png_file" | awk '{print $5}')"
+            echo "File path: $(pwd)/$png_file"
+        fi
+        
+        # attempt to open the image
+        open_image_if_possible "$png_file"
+        return 0
+    else
+        echo "❌ Failed to generate PNG from DOT file"
+        echo "Manual generation command: dot -Tpng $dot_file -o $png_file"
+        return 1
+    fi
+}
+
+run_visualization() {
+    if [ -f "$SCRIPT_DIR/visualize.py" ]; then
+        echo "Running visualization script..."
+        if command -v python3 &>/dev/null; then
+            if python3 "$SCRIPT_DIR/visualize.py" "$OUTPUT_FILE"; then
+                echo "Visualization script completed successfully"
+            else
+                echo "Visualization script failed"
+                return 1
+            fi
+        else
+            if python "$SCRIPT_DIR/visualize.py" "$OUTPUT_FILE"; then
+                echo "Visualization script completed successfully"
+            else
+                echo "Visualization script failed"
+                return 1
+            fi
+        fi
+        
+        # clean up the JSON output file if visualization successful
+        if [ -f "$OUTPUT_FILE" ]; then
+            rm "$OUTPUT_FILE"
+            echo "Cleaned up intermediate file: $OUTPUT_FILE"
+        fi
+    else
+        echo "Note: visualize.py not found. Output saved to '$OUTPUT_FILE'"
+        echo "You can manually process the schema data from this file"
+        return 1
+    fi
+}
 
 run_headless_mode() {
     local config_file="$1"
 
     [ ! -f "$config_file" ] && error "Config file '$config_file' does not exist"
 
+    echo "Running in headless mode with config: $config_file"
+    
+    # check required tools
     check_tool jq
     check_tool psql
+    check_tool dot  # for Graphviz
 
     parse_config "$config_file"
     validate_config
@@ -66,40 +177,41 @@ run_headless_mode() {
     case "$DATABASE_TYPE" in
         postgres)
             source "$SCRIPT_DIR/lib/database/postgres.sh"
-            run_postgres_extraction "$SCRIPT_DIR"
+            echo "Extracting PostgreSQL schema..."
+            if ! run_postgres_extraction "$SCRIPT_DIR"; then
+                error "Failed to extract PostgreSQL schema"
+            fi
             ;;
         *)
             error "Unsupported database type: $DATABASE_TYPE"
             ;;
     esac
 
-    # run visualization 
-    if [ -f "$SCRIPT_DIR/visualize.py" ]; then
-        if command -v python3 &>/dev/null; then
-            python3 "$SCRIPT_DIR/visualize.py" "$OUTPUT_FILE"
-        else
-            python "$SCRIPT_DIR/visualize.py" "$OUTPUT_FILE"
-        fi
-        rm "${OUTPUT_FILE}"
-    else
-        echo "Note: visualize.py not found. Output saved to '$OUTPUT_FILE'"
+    # Run visualization
+    if ! run_visualization; then
+        error "Failed to generate visualization"
     fi
 
-
-    # generate PNG
-    dot -Tpng database_erd.dot -o ERD.png
-
-    # on macOS
-    open ERD.png
+    # Generate ERD diagram
+    if ! generate_erd_diagram; then
+        error "Failed to generate ERD diagram"
+    fi
 }
 
 run_interactive_mode() {
+    echo "Running in interactive mode..."
+    
+    # check required tools
     check_tool psql
+    check_tool dot  # for Graphviz
 
     get_database_config
 
     local temp_config
     temp_config=$(mktemp) || error "Failed to create temporary file"
+    
+    # ensure cleanup of temp file on exit
+    trap "rm -f '$temp_config'; cleanup" INT TERM QUIT EXIT
 
     create_temp_config "$temp_config"
 
@@ -110,33 +222,28 @@ run_interactive_mode() {
     case "$DATABASE_TYPE" in
         postgres)
             source "$SCRIPT_DIR/lib/database/postgres.sh"
-            run_postgres_extraction "$SCRIPT_DIR"
+            echo "Extracting PostgreSQL schema..."
+            if ! run_postgres_extraction "$SCRIPT_DIR"; then
+                error "Failed to extract PostgreSQL schema"
+            fi
             ;;
         *)
             error "Unsupported database type: $DATABASE_TYPE"
             ;;
     esac
     
-    # run visualization 
-    if [ -f "$SCRIPT_DIR/visualize.py" ]; then
-        if command -v python3 &>/dev/null; then
-            python3 "$SCRIPT_DIR/visualize.py" "$OUTPUT_FILE"
-        else
-            python "$SCRIPT_DIR/visualize.py" "$OUTPUT_FILE"
-        fi
-        rm "$OUTPUT_FILE"
-    else
-        echo "Note: visualize.py not found. Output saved to '$OUTPUT_FILE'"
+    if ! run_visualization; then
+        error "Failed to generate visualization"
     fi
     
-    # generate PNG
-    dot -Tpng database_erd.dot -o ERD.png
+    if ! generate_erd_diagram; then
+        error "Failed to generate ERD diagram"
+    fi
     
-    # on macOS
-    open ERD.png
+    echo "🎉 Interactive mode completed successfully!"
     
-    # clean up temporary config
-    rm "$temp_config"
+    # clean up temporary config 
+    rm -f "$temp_config"
 }
 
 # parse command line args
@@ -155,7 +262,6 @@ case $# in
         ;;
     1)
         if [[ "$1" == "--help" ]]; then
-            # need to implement help flag
             show_help_message
         else 
             show_usage_error_message
@@ -165,6 +271,4 @@ case $# in
         # invalid number of args
         show_usage_error_message
         ;;
-
 esac
-
