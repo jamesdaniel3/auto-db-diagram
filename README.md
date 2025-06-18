@@ -9,7 +9,7 @@ This tool was built to solve the pains of maintaining database diagrams on softw
 To install on Mac or Linux:
 
 ```bash
-brew install jamesdaniel3/auto-db-diagram/db-diagram
+brew install db-diagram
 ```
 
 The code can either be run in headless mode, in which case, you must pass the file path to a config file:
