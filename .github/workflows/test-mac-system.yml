@@ -1,0 +1,134 @@
+name: macOS system tests
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          # macOS Intel
+          - os: macos-12
+          - os: macos-13
+          - os: macos-14
+          # macOS Apple Silicon
+          - os: macos-14-large # Apple Silicon M1
+          - os: macos-15 # Apple Silicon (if available)
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_USER: testuser
+          POSTGRES_DB: testdb
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          brew install jq graphviz libpq
+          # Add libpq to PATH - handle both Intel and Apple Silicon
+          if [[ -d "/opt/homebrew/opt/libpq/bin" ]]; then
+            # Apple Silicon path
+            echo "/opt/homebrew/opt/libpq/bin" >> $GITHUB_PATH
+          elif [[ -d "/usr/local/opt/libpq/bin" ]]; then
+            # Intel Mac path
+            echo "/usr/local/opt/libpq/bin" >> $GITHUB_PATH
+          fi
+
+      - name: Wait for PostgreSQL to be ready
+        run: |
+          for i in {1..30}; do
+            if pg_isready -h localhost -p 5432 -U testuser; then
+              echo "PostgreSQL is ready"
+              break
+            fi
+            echo "Waiting for PostgreSQL... ($i/30)"
+            sleep 2
+          done
+
+      - name: Create test database schema
+        run: |
+          # Create tables with foreign key relationship
+          PGPASSWORD=testpassword psql -h localhost -p 5432 -U testuser -d testdb << 'EOF'
+          -- Create users table (parent)
+          CREATE TABLE users (
+            id SERIAL PRIMARY KEY,
+            username VARCHAR(50) NOT NULL UNIQUE,
+            email VARCHAR(100) NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
+
+          -- Create posts table (child with foreign key)
+          CREATE TABLE posts (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            title VARCHAR(200) NOT NULL,
+            content TEXT,
+            published BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
+
+          -- Insert some sample data
+          INSERT INTO users (username, email) VALUES 
+            ('john_doe', 'john@example.com'),
+            ('jane_smith', 'jane@example.com');
+
+          INSERT INTO posts (user_id, title, content, published) VALUES 
+            (1, 'First Post', 'This is the first post content', TRUE),
+            (1, 'Second Post', 'This is the second post content', FALSE),
+            (2, 'Jane''s Post', 'Content from Jane', TRUE);
+          EOF
+
+      - name: Create credentials file
+        run: |
+          cat > credentials.json << 'EOF'
+          {
+            "host": "localhost",
+            "port": 5432,
+            "database": "testdb",
+            "username": "testuser",
+            "password": "testpassword"
+          }
+          EOF
+
+      - name: Run script with database credentials
+        run: |
+          echo "Running on macOS (${{ runner.arch }})"
+          chmod +x main.sh
+          ./main.sh --credentials credentials.json --headless
+
+      - name: Verify PNG file was generated
+        run: |
+          # Look for PNG files in common output locations
+          if ls *.png 1> /dev/null 2>&1; then
+            echo "✅ PNG file(s) found in current directory:"
+            ls -la *.png
+          elif find . -name "*.png" -type f | head -1; then
+            echo "✅ PNG file(s) found:"
+            find . -name "*.png" -type f -exec ls -la {} \;
+          else
+            echo "❌ No PNG files found!"
+            echo "Current directory contents:"
+            ls -la
+            exit 1
+          fi
+
+      - name: Upload generated diagram as artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: db-diagram-${{ matrix.os }}-${{ runner.arch }}
+          path: |
+            *.png
+            **/*.png
+          if-no-files-found: warn
