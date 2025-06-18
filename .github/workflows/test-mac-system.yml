@@ -15,51 +15,54 @@ jobs:
           - os: macos-14
           - os: macos-15
           - os: macos-latest
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: testpassword
-          POSTGRES_USER: testuser
-          POSTGRES_DB: testdb
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Install dependencies
         run: |
-          brew install jq graphviz libpq
-          # Add libpq to PATH - handle both Intel and Apple Silicon
+          brew install jq graphviz libpq postgresql@15
+          # Add paths - handle both Intel and Apple Silicon
           if [[ -d "/opt/homebrew/opt/libpq/bin" ]]; then
             # Apple Silicon path
             echo "/opt/homebrew/opt/libpq/bin" >> $GITHUB_PATH
+            echo "/opt/homebrew/opt/postgresql@15/bin" >> $GITHUB_PATH
           elif [[ -d "/usr/local/opt/libpq/bin" ]]; then
             # Intel Mac path
             echo "/usr/local/opt/libpq/bin" >> $GITHUB_PATH
+            echo "/usr/local/opt/postgresql@15/bin" >> $GITHUB_PATH
           fi
 
-      - name: Wait for PostgreSQL to be ready
+      - name: Start PostgreSQL
         run: |
-          for i in {1..30}; do
-            if pg_isready -h localhost -p 5432 -U testuser; then
-              echo "PostgreSQL is ready"
-              break
-            fi
-            echo "Waiting for PostgreSQL... ($i/30)"
-            sleep 2
-          done
+          # Initialize database if needed
+          if [[ -d "/opt/homebrew/var/postgresql@15" ]]; then
+            DB_DIR="/opt/homebrew/var/postgresql@15"
+          else
+            DB_DIR="/usr/local/var/postgresql@15"
+          fi
+
+          if [[ ! -d "$DB_DIR" ]]; then
+            initdb -D "$DB_DIR"
+          fi
+
+          # Start PostgreSQL
+          pg_ctl -D "$DB_DIR" -l "$DB_DIR/server.log" start
+
+          # Wait for PostgreSQL to start
+          sleep 5
+
+          # Create test user and database
+          createuser -s testuser
+          createdb -O testuser testdb
+
+          # Set password for test user
+          psql -c "ALTER USER testuser PASSWORD 'testpassword';"
 
       - name: Create test database schema
         run: |
           # Create tables with foreign key relationship
-          PGPASSWORD=testpassword psql -h localhost -p 5432 -U testuser -d testdb << 'EOF'
+          PGPASSWORD=testpassword psql -h localhost -U testuser -d testdb << 'EOF'
           -- Create users table (parent)
           CREATE TABLE users (
             id SERIAL PRIMARY KEY,
@@ -94,7 +97,7 @@ jobs:
           cat > credentials.json << 'EOF'
           {
             "DATABASE_TYPE": "postgres",
-            "CONNECTION_INFO" {
+            "CONNECTION_INFO": {
               "host": "localhost",
               "port": 5432,
               "database": "testdb",
@@ -135,3 +138,13 @@ jobs:
             *.png
             **/*.png
           if-no-files-found: warn
+
+      - name: Stop PostgreSQL
+        if: always()
+        run: |
+          if [[ -d "/opt/homebrew/var/postgresql@15" ]]; then
+            DB_DIR="/opt/homebrew/var/postgresql@15"
+          else
+            DB_DIR="/usr/local/var/postgresql@15"
+          fi
+          pg_ctl -D "$DB_DIR" stop || true
