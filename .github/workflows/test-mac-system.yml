@@ -11,10 +11,6 @@ jobs:
           # macOS Intel
           - os: macos-13
             arch: intel
-
-          # macOS Apple Silicon
-          - os: macos-14
-            arch: arm64
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
