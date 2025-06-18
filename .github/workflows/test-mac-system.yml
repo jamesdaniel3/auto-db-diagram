@@ -52,12 +52,9 @@ jobs:
           # Wait for PostgreSQL to start
           sleep 5
 
-          # Create test user and database
-          createuser -s testuser
-          createdb -O testuser testdb
-
-          # Set password for test user
-          psql -c "ALTER USER testuser PASSWORD 'testpassword';"
+          # Create test user and database (connect to default postgres db)
+          psql -d postgres -c "CREATE USER testuser WITH SUPERUSER PASSWORD 'testpassword';"
+          psql -d postgres -c "CREATE DATABASE testdb OWNER testuser;"
 
       - name: Create test database schema
         run: |
