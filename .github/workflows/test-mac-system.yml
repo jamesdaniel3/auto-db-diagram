@@ -1,0 +1,159 @@
+name: macOS system tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: macos-13
+            arch: intel
+
+          - os: macos-14
+            arch: arm64
+
+          - os: macos-15
+            arch: arm64
+    steps:
+      - name: Debug runner specs
+        run: |
+          echo "Runner: ${{ runner.os }} ${{ runner.arch }}"
+          echo "Matrix OS: ${{ matrix.os }}"
+          echo "CPU cores: $(sysctl -n hw.ncpu)"
+          echo "Memory: $(sysctl -n hw.memsize | awk '{print $1/1024/1024/1024 " GB"}')"
+          echo "Processor: $(sysctl -n machdep.cpu.brand_string)"
+          echo "Architecture: $(uname -m)"
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          brew install jq graphviz libpq postgresql@15
+          # Add paths - handle both Intel and Apple Silicon
+          if [[ -d "/opt/homebrew/opt/libpq/bin" ]]; then
+            # Apple Silicon path
+            echo "/opt/homebrew/opt/libpq/bin" >> $GITHUB_PATH
+            echo "/opt/homebrew/opt/postgresql@15/bin" >> $GITHUB_PATH
+          elif [[ -d "/usr/local/opt/libpq/bin" ]]; then
+            # Intel Mac path
+            echo "/usr/local/opt/libpq/bin" >> $GITHUB_PATH
+            echo "/usr/local/opt/postgresql@15/bin" >> $GITHUB_PATH
+          fi
+
+      - name: Start PostgreSQL
+        run: |
+          # Initialize database if needed
+          if [[ -d "/opt/homebrew/var/postgresql@15" ]]; then
+            DB_DIR="/opt/homebrew/var/postgresql@15"
+          else
+            DB_DIR="/usr/local/var/postgresql@15"
+          fi
+
+          if [[ ! -d "$DB_DIR" ]]; then
+            initdb -D "$DB_DIR"
+          fi
+
+          # Start PostgreSQL
+          pg_ctl -D "$DB_DIR" -l "$DB_DIR/server.log" start
+
+          # Wait for PostgreSQL to start
+          sleep 5
+
+          # Create test user and database (connect to default postgres db)
+          psql -d postgres -c "CREATE USER testuser WITH SUPERUSER PASSWORD 'testpassword';"
+          psql -d postgres -c "CREATE DATABASE testdb OWNER testuser;"
+
+      - name: Create test database schema
+        run: |
+          # Create tables with foreign key relationship
+          PGPASSWORD=testpassword psql -h localhost -U testuser -d testdb << 'EOF'
+          -- Create users table (parent)
+          CREATE TABLE users (
+            id SERIAL PRIMARY KEY,
+            username VARCHAR(50) NOT NULL UNIQUE,
+            email VARCHAR(100) NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
+
+          -- Create posts table (child with foreign key)
+          CREATE TABLE posts (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            title VARCHAR(200) NOT NULL,
+            content TEXT,
+            published BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
+
+          -- Insert some sample data
+          INSERT INTO users (username, email) VALUES 
+            ('john_doe', 'john@example.com'),
+            ('jane_smith', 'jane@example.com');
+
+          INSERT INTO posts (user_id, title, content, published) VALUES 
+            (1, 'First Post', 'This is the first post content', TRUE),
+            (1, 'Second Post', 'This is the second post content', FALSE),
+            (2, 'Jane''s Post', 'Content from Jane', TRUE);
+          EOF
+
+      - name: Create credentials file
+        run: |
+          cat > credentials.json << 'EOF'
+          {
+            "DATABASE_TYPE": "postgres",
+            "CONNECTION_INFO": {
+              "HOST": "localhost",
+              "PORT": 5432,
+              "USERNAME": "testuser",
+              "DATABASE_NAME": "testdb",
+              "PASSWORD": "testpassword"
+            }
+          }
+          EOF
+
+      - name: Run script with database credentials
+        run: |
+          echo "Running on macOS (${{ runner.arch }})"
+          chmod +x main.sh
+          ./main.sh --headless credentials.json
+
+      - name: Verify PNG file was generated
+        run: |
+          # Look for PNG files in common output locations
+          if ls *.png 1> /dev/null 2>&1; then
+            echo "✅ PNG file(s) found in current directory:"
+            ls -la *.png
+          elif find . -name "*.png" -type f | head -1; then
+            echo "✅ PNG file(s) found:"
+            find . -name "*.png" -type f -exec ls -la {} \;
+          else
+            echo "❌ No PNG files found!"
+            echo "Current directory contents:"
+            ls -la
+            exit 1
+          fi
+
+      # removed to avoid paying for storage
+      # - name: Upload generated diagram as artifact
+      #   uses: actions/upload-artifact@v4
+      #   if: always()
+      #   with:
+      #     name: db-diagram-${{ matrix.os }}-${{ matrix.arch }}
+      #     path: |
+      #       *.png
+      #       **/*.png
+      #     if-no-files-found: warn
+
+      - name: Stop PostgreSQL
+        if: always()
+        run: |
+          if [[ -d "/opt/homebrew/var/postgresql@15" ]]; then
+            DB_DIR="/opt/homebrew/var/postgresql@15"
+          else
+            DB_DIR="/usr/local/var/postgresql@15"
+          fi
+          pg_ctl -D "$DB_DIR" stop || true

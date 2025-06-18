@@ -1,0 +1,145 @@
+name: Ubuntu system tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            postgres_version: "16"
+            arch: x64
+
+          - os: ubuntu-22.04
+            postgres_version: "14"
+            arch: x64
+    steps:
+      - name: Debug runner specs
+        run: |
+          echo "Runner: ${{ runner.os }} ${{ runner.arch }}"
+          echo "Matrix OS: ${{ matrix.os }}"
+          echo "CPU cores: $(nproc)"
+          echo "Memory: $(free -h | grep '^Mem:' | awk '{print $2}')"
+          echo "Processor: $(cat /proc/cpuinfo | grep 'model name' | head -1 | cut -d: -f2 | xargs)"
+          echo "Architecture: $(uname -m)"
+          echo "Ubuntu version: $(lsb_release -d | cut -f2)"
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Update package lists
+        run: |
+          sudo apt-get update
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get install -y jq graphviz postgresql-${{ matrix.postgres_version }} postgresql-client-${{ matrix.postgres_version }} postgresql-contrib-${{ matrix.postgres_version }}
+
+      - name: Start PostgreSQL service
+        run: |
+          sudo systemctl start postgresql
+          sudo systemctl enable postgresql
+
+          # Wait for PostgreSQL to start
+          sleep 5
+
+          # Check if service is running
+          sudo systemctl status postgresql
+
+      - name: Setup PostgreSQL user and database
+        run: |
+          # Switch to postgres user and create test user and database
+          sudo -u postgres psql << 'EOF'
+          CREATE USER testuser WITH SUPERUSER PASSWORD 'testpassword';
+          CREATE DATABASE testdb OWNER testuser;
+          EOF
+
+      - name: Create test database schema
+        run: |
+          # Create tables with foreign key relationship
+          PGPASSWORD=testpassword psql -h localhost -U testuser -d testdb << 'EOF'
+          -- Create users table (parent)
+          CREATE TABLE users (
+            id SERIAL PRIMARY KEY,
+            username VARCHAR(50) NOT NULL UNIQUE,
+            email VARCHAR(100) NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
+
+          -- Create posts table (child with foreign key)
+          CREATE TABLE posts (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            title VARCHAR(200) NOT NULL,
+            content TEXT,
+            published BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
+
+          -- Insert some sample data
+          INSERT INTO users (username, email) VALUES 
+            ('john_doe', 'john@example.com'),
+            ('jane_smith', 'jane@example.com');
+
+          INSERT INTO posts (user_id, title, content, published) VALUES 
+            (1, 'First Post', 'This is the first post content', TRUE),
+            (1, 'Second Post', 'This is the second post content', FALSE),
+            (2, 'Jane''s Post', 'Content from Jane', TRUE);
+          EOF
+
+      - name: Create credentials file
+        run: |
+          cat > credentials.json << 'EOF'
+          {
+            "DATABASE_TYPE": "postgres",
+            "CONNECTION_INFO": {
+              "HOST": "localhost",
+              "PORT": 5432,
+              "USERNAME": "testuser",
+              "DATABASE_NAME": "testdb",
+              "PASSWORD": "testpassword"
+            }
+          }
+          EOF
+
+      - name: Run script with database credentials
+        run: |
+          echo "Running on Ubuntu ${{ matrix.os }} (${{ runner.arch }})"
+          chmod +x main.sh
+          ./main.sh --headless credentials.json
+
+      - name: Verify PNG file was generated
+        run: |
+          # Look for PNG files in common output locations
+          if ls *.png 1> /dev/null 2>&1; then
+            echo "✅ PNG file(s) found in current directory:"
+            ls -la *.png
+          elif find . -name "*.png" -type f | head -1; then
+            echo "✅ PNG file(s) found:"
+            find . -name "*.png" -type f -exec ls -la {} \;
+          else
+            echo "❌ No PNG files found!"
+            echo "Current directory contents:"
+            ls -la
+            exit 1
+          fi
+
+      # removed to avoid paying for storage
+      - name: Upload generated diagram as artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: db-diagram-${{ matrix.os }}-${{ matrix.postgres_version }}
+          path: |
+            *.png
+            **/*.png
+          if-no-files-found: warn
+
+      - name: Stop PostgreSQL (cleanup)
+        if: always()
+        run: |
+          sudo systemctl stop postgresql || true

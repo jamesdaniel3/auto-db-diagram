@@ -13,15 +13,23 @@ run_postgres_extraction() {
     
     echo "Connecting to $DATABASE_TYPE at $HOST:$PORT..."
 
-    if PGPASSWORD="" psql -h "$HOST" -p "$PORT" -U "$USERNAME" -d "$DATABASE_NAME" -t -c "$QUERY" -o "$OUTPUT_FILE" 2>/dev/null; then
+    CONNECTION_STRING="postgresql://$USERNAME:$PASSWORD@$HOST:$PORT/$DATABASE_NAME"
+    
+    # try connection using connection string
+    if psql "$CONNECTION_STRING" -t -c "$QUERY" -o "$OUTPUT_FILE" 2>/dev/null; then
         echo "Schema extracted to '$OUTPUT_FILE'"
     else
-        echo "Password prompt likely required..."
-        if ! psql -h "$HOST" -p "$PORT" -U "$USERNAME" -d "$DATABASE_NAME" -t -c "$QUERY" -o "$OUTPUT_FILE"; then
+        echo "Connection failed, trying with environment variable..."
+        # fallback to environment variable method
+        if ! PGPASSWORD="$PASSWORD" psql -h "$HOST" -p "$PORT" -U "$USERNAME" -d "$DATABASE_NAME" -t -c "$QUERY" -o "$OUTPUT_FILE"; then
             error "Failed to connect to database or execute query"
         fi
     fi
 
-    jq '.' "$OUTPUT_FILE" > "${OUTPUT_FILE}.tmp" && mv "${OUTPUT_FILE}.tmp" "$OUTPUT_FILE"
+    # format JSON output
+    if command -v jq >/dev/null 2>&1; then
+        jq '.' "$OUTPUT_FILE" > "${OUTPUT_FILE}.tmp" && mv "${OUTPUT_FILE}.tmp" "$OUTPUT_FILE"
+    else
+        echo "Warning: jq not found, JSON output not formatted"
+    fi
 }
-
