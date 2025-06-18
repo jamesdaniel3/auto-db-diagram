@@ -14,6 +14,14 @@ jobs:
           - os: macos-13
             arch: intel
     steps:
+      - name: Debug runner specs
+        run: |
+          echo "Runner: ${{ runner.os }} ${{ runner.arch }}"
+          echo "Matrix OS: ${{ matrix.os }}"
+          echo "CPU cores: $(sysctl -n hw.ncpu)"
+          echo "Memory: $(sysctl -n hw.memsize | awk '{print $1/1024/1024/1024 " GB"}')"
+          echo "Processor: $(sysctl -n machdep.cpu.brand_string)"
+          echo "Architecture: $(uname -m)"
       - name: Checkout code
         uses: actions/checkout@v4
 
