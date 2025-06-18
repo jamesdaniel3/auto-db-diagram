@@ -9,12 +9,12 @@ jobs:
       matrix:
         include:
           # macOS Intel
-          - os: macos-12
           - os: macos-13
-          - os: macos-14
+
           # macOS Apple Silicon
-          - os: macos-14-large # Apple Silicon M1
-          - os: macos-15 # Apple Silicon (if available)
+          - os: macos-14
+          - os: macos-15
+          - os: macos-latest
     services:
       postgres:
         image: postgres:15
