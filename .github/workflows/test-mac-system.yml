@@ -93,11 +93,14 @@ jobs:
         run: |
           cat > credentials.json << 'EOF'
           {
-            "host": "localhost",
-            "port": 5432,
-            "database": "testdb",
-            "username": "testuser",
-            "password": "testpassword"
+            "DATABASE_TYPE": "postgres",
+            "CONNECTION_INFO" {
+              "host": "localhost",
+              "port": 5432,
+              "database": "testdb",
+              "username": "testuser",
+              "password": "testpassword"
+            }
           }
           EOF
 
@@ -105,7 +108,7 @@ jobs:
         run: |
           echo "Running on macOS (${{ runner.arch }})"
           chmod +x main.sh
-          ./main.sh --credentials credentials.json --headless
+          ./main.sh --headless credentials.json
 
       - name: Verify PNG file was generated
         run: |
