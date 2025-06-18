@@ -10,9 +10,14 @@ jobs:
     strategy:
       matrix:
         include:
-          # macOS Intel
           - os: macos-13
             arch: intel
+
+          - os: macos-14
+            arch: arm64
+
+          - os: macos-15
+            arch: arm64
     steps:
       - name: Debug runner specs
         run: |
