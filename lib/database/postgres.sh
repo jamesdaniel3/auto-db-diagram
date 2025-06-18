@@ -14,7 +14,7 @@ run_postgres_extraction() {
     echo "Connecting to $DATABASE_TYPE at $HOST:$PORT..."
 
     if PGPASSWORD="" psql -h "$HOST" -p "$PORT" -U "$USERNAME" -d "$DATABASE_NAME" -t -c "$QUERY" -o "$OUTPUT_FILE" 2>/dev/null; then
-        echo "Schema extracted to '$OUTPUT_FILE'"
+        echo "Schema extracted to '$OUTPUT_FILE"
     else
         echo "Password prompt likely required..."
         if ! psql -h "$HOST" -p "$PORT" -U "$USERNAME" -d "$DATABASE_NAME" -t -c "$QUERY" -o "$OUTPUT_FILE"; then
