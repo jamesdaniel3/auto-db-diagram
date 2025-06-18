@@ -18,41 +18,43 @@ parse_config() {
         error "Missing or invalid 'database_type' field in config"
     fi
 
-    # Parse connection info (case-insensitive field names)
+    # Extract connection_info object (case-insensitive)
+    CONNECTION_INFO=$(jq -r '
+        to_entries |
+        map(select(.key | ascii_downcase == "connection_info")) |
+        .[0].value
+    ' "$CONFIG_FILE")
+
+    # Parse fields from connection_info (case-insensitive)
     HOST=$(jq -r '
-        .connection_info // {} | 
-        to_entries | 
-        map(select(.key | ascii_downcase == "host")) | 
+        to_entries |
+        map(select(.key | ascii_downcase == "host")) |
         .[0].value // empty
-    ' "$CONFIG_FILE")
-    
+    ' <<< "$CONNECTION_INFO")
+
     PORT=$(jq -r '
-        .connection_info // .connection // {} | 
-        to_entries | 
-        map(select(.key | ascii_downcase == "port")) | 
+        to_entries |
+        map(select(.key | ascii_downcase == "port")) |
         .[0].value // empty
-    ' "$CONFIG_FILE")
-    
+    ' <<< "$CONNECTION_INFO")
+
     USERNAME=$(jq -r '
-        .connection_info // .connection // {} | 
-        to_entries | 
-        map(select(.key | ascii_downcase == "username")) | 
+        to_entries |
+        map(select(.key | ascii_downcase == "username")) |
         .[0].value // empty
-    ' "$CONFIG_FILE")
-    
+    ' <<< "$CONNECTION_INFO")
+
     DATABASE_NAME=$(jq -r '
-        .connection_info // .connection // {} | 
-        to_entries | 
-        map(select(.key | ascii_downcase == "database_name")) | 
+        to_entries |
+        map(select(.key | ascii_downcase == "database_name")) |
         .[0].value // empty
-    ' "$CONFIG_FILE")
-    
+    ' <<< "$CONNECTION_INFO")
+
     PASSWORD=$(jq -r '
-        .connection_info // .connection // {} | 
-        to_entries | 
-        map(select(.key | ascii_downcase == "password")) | 
+        to_entries |
+        map(select(.key | ascii_downcase == "password")) |
         .[0].value // empty
-    ' "$CONFIG_FILE")
+    ' <<< "$CONNECTION_INFO")
 
     # Parse output file (optional, case-insensitive)
     OUTPUT_FILE=$(jq -r '
