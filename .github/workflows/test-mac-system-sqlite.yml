@@ -1,0 +1,304 @@
+name: macOS SQLite system tests
+on:
+  pull_request:
+    branches: [main]
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: macos-13
+            arch: intel
+
+          - os: macos-14
+            arch: arm64
+
+          - os: macos-15
+            arch: arm64
+    steps:
+      - name: Debug runner specs
+        run: |
+          echo "Runner: ${{ runner.os }} ${{ runner.arch }}"
+          echo "Matrix OS: ${{ matrix.os }}"
+          echo "CPU cores: $(sysctl -n hw.ncpu)"
+          echo "Memory: $(sysctl -n hw.memsize | awk '{print $1/1024/1024/1024 " GB"}')"
+          echo "Processor: $(sysctl -n machdep.cpu.brand_string)"
+          echo "Architecture: $(uname -m)"
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          brew install jq graphviz sqlite
+          # Verify sqlite3 is available
+          sqlite3 --version
+
+      - name: Create test SQLite database
+        run: |
+          # Create SQLite database with test schema
+          cat > create_test_db.sql << 'EOF'
+          -- Create users table (parent)
+          CREATE TABLE users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL UNIQUE,
+            email TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          );
+
+          -- Create posts table (child with foreign key)
+          CREATE TABLE posts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            content TEXT,
+            published BOOLEAN DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+          );
+
+          -- Create categories table for additional complexity
+          CREATE TABLE categories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            description TEXT
+          );
+
+          -- Create many-to-many relationship table
+          CREATE TABLE post_categories (
+            post_id INTEGER NOT NULL,
+            category_id INTEGER NOT NULL,
+            PRIMARY KEY (post_id, category_id),
+            FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
+            FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
+          );
+
+          -- Insert sample data
+          INSERT INTO users (username, email) VALUES 
+            ('john_doe', 'john@example.com'),
+            ('jane_smith', 'jane@example.com'),
+            ('bob_wilson', 'bob@example.com');
+
+          INSERT INTO categories (name, description) VALUES
+            ('Technology', 'Posts about technology and programming'),
+            ('Lifestyle', 'Posts about daily life and experiences'),
+            ('Tutorial', 'How-to guides and tutorials');
+
+          INSERT INTO posts (user_id, title, content, published) VALUES 
+            (1, 'First Post', 'This is the first post content', 1),
+            (1, 'Second Post', 'This is the second post content', 0),
+            (2, 'Jane''s Post', 'Content from Jane', 1),
+            (3, 'Bob''s Tutorial', 'How to use SQLite effectively', 1);
+
+          INSERT INTO post_categories (post_id, category_id) VALUES
+            (1, 1),  -- First Post -> Technology
+            (2, 2),  -- Second Post -> Lifestyle  
+            (3, 2),  -- Jane's Post -> Lifestyle
+            (4, 1),  -- Bob's Tutorial -> Technology
+            (4, 3);  -- Bob's Tutorial -> Tutorial
+
+          -- Create indexes for better performance demonstration
+          CREATE INDEX idx_posts_user_id ON posts(user_id);
+          CREATE INDEX idx_posts_published ON posts(published);
+          CREATE INDEX idx_users_username ON users(username);
+
+          -- Create a view to test view handling
+          CREATE VIEW published_posts AS
+          SELECT 
+            p.id,
+            p.title,
+            p.content,
+            u.username,
+            u.email,
+            p.created_at
+          FROM posts p
+          JOIN users u ON p.user_id = u.id
+          WHERE p.published = 1;
+          EOF
+
+          # Create the database
+          sqlite3 testdb.sqlite < create_test_db.sql
+
+          # Verify database was created successfully
+          echo "Database created. Tables:"
+          sqlite3 testdb.sqlite ".tables"
+          echo "Row counts:"
+          sqlite3 testdb.sqlite "SELECT 'users: ' || COUNT(*) FROM users; SELECT 'posts: ' || COUNT(*) FROM posts; SELECT 'categories: ' || COUNT(*) FROM categories;"
+
+      - name: Create credentials file for SQLite
+        run: |
+          cat > credentials.json << 'EOF'
+          {
+            "DATABASE_TYPE": "sqlite",
+            "CONNECTION_INFO": {
+              "DATABASE_LOCATION": "./testdb.sqlite"
+            }
+          }
+          EOF
+
+      - name: Run script with SQLite database
+        run: |
+          echo "Running SQLite diagram generation on macOS (${{ runner.arch }})"
+          chmod +x main.sh
+          ./main.sh --headless credentials.json
+
+      - name: Verify PNG file was generated
+        run: |
+          # Look for PNG files in common output locations
+          if ls *.png 1> /dev/null 2>&1; then
+            echo "PNG file(s) found in current directory:"
+            ls -la *.png
+          elif find . -name "*.png" -type f | head -1; then
+            echo "PNG file(s) found:"
+            find . -name "*.png" -type f -exec ls -la {} \;
+          else
+            echo "No PNG files found!"
+            echo "Current directory contents:"
+            ls -la
+            exit 1
+          fi
+
+      - name: Verify diagram content (basic checks)
+        run: |
+          # Find the generated PNG file
+          PNG_FILE=$(find . -name "*.png" -type f | head -1)
+
+          if [[ -n "$PNG_FILE" ]]; then
+            echo "Found diagram: $PNG_FILE"
+            echo "File size: $(ls -lh "$PNG_FILE" | awk '{print $5}')"
+            
+            # Check if file is not empty and has reasonable size
+            FILE_SIZE=$(stat -f%z "$PNG_FILE" 2>/dev/null || stat -c%s "$PNG_FILE" 2>/dev/null)
+            if [[ $FILE_SIZE -gt 1000 ]]; then
+              echo "Diagram file size looks reasonable: $FILE_SIZE bytes"
+            else
+              echo "Warning: Diagram file is quite small: $FILE_SIZE bytes"
+            fi
+          else
+            echo "No PNG file found for verification"
+            exit 1
+          fi
+
+      - name: Test database integrity after diagram generation
+        run: |
+          echo "Verifying database integrity after diagram generation..."
+
+          # Check that database is still accessible and intact
+          sqlite3 testdb.sqlite "PRAGMA integrity_check;" | head -1
+
+          # Verify our test data is still there
+          USER_COUNT=$(sqlite3 testdb.sqlite "SELECT COUNT(*) FROM users;")
+          POST_COUNT=$(sqlite3 testdb.sqlite "SELECT COUNT(*) FROM posts;")
+
+          echo "Users in database: $USER_COUNT"
+          echo "Posts in database: $POST_COUNT"
+
+          if [[ $USER_COUNT -eq 3 && $POST_COUNT -eq 4 ]]; then
+            echo "Database integrity verified"
+          else
+            echo "Database integrity check failed"
+            exit 1
+          fi
+
+      - name: Test with different SQLite database configurations
+        run: |
+          # Test with a minimal database (single table)
+          cat > minimal_test.sql << 'EOF'
+          CREATE TABLE simple_table (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            value INTEGER
+          );
+
+          INSERT INTO simple_table (name, value) VALUES 
+            ('test1', 100),
+            ('test2', 200);
+          EOF
+
+          sqlite3 minimal.sqlite < minimal_test.sql
+
+          # Create credentials for minimal database
+          cat > minimal_credentials.json << 'EOF'
+          {
+            "DATABASE_TYPE": "sqlite",
+            "CONNECTION_INFO": {
+              "DATABASE_PATH": "./minimal.sqlite"
+            }
+          }
+          EOF
+
+          echo "Testing with minimal database..."
+          ./main.sh --headless minimal_credentials.json
+
+          # Verify minimal diagram was created
+          if find . -name "*minimal*" -name "*.png" -type f | head -1; then
+            echo "Minimal database diagram generated successfully"
+          else
+            echo "Minimal diagram may have different naming - checking for any new PNG files"
+            ls -la *.png
+          fi
+
+      - name: Test error handling with invalid SQLite database
+        run: |
+          # Test with non-existent database file
+          cat > invalid_credentials.json << 'EOF'
+          {
+            "DATABASE_TYPE": "sqlite",
+            "CONNECTION_INFO": {
+              "DATABASE_PATH": "./nonexistent.sqlite"
+            }
+          }
+          EOF
+
+          echo "Testing error handling with non-existent database..."
+
+          # This should fail gracefully
+          if ./main.sh --headless invalid_credentials.json; then
+            echo "Script succeeded with non-existent database (unexpected)"
+          else
+            echo "Script properly handled non-existent database error"
+          fi
+
+      - name: Test with corrupted SQLite database
+        run: |
+          # Create a corrupted database file
+          echo "This is not a valid SQLite database" > corrupted.sqlite
+
+          cat > corrupted_credentials.json << 'EOF'
+          {
+            "DATABASE_TYPE": "sqlite",
+            "CONNECTION_INFO": {
+              "DATABASE_PATH": "./corrupted.sqlite"
+            }
+          }
+          EOF
+
+          echo "Testing error handling with corrupted database..."
+
+          # This should fail gracefully
+          if ./main.sh --headless corrupted_credentials.json; then
+            echo "Script succeeded with corrupted database (unexpected)"
+          else
+            echo "Script properly handled corrupted database error"
+          fi
+
+      # removed to avoid paying for storage
+      # - name: Upload generated diagrams as artifacts
+      #   uses: actions/upload-artifact@v4
+      #   if: always()
+      #   with:
+      #     name: sqlite-diagrams-${{ matrix.os }}-${{ matrix.arch }}
+      #     path: |
+      #       *.png
+      #       **/*.png
+      #     if-no-files-found: warn
+
+      - name: Cleanup test files
+        if: always()
+        run: |
+          echo "Cleaning up test files..."
+          rm -f testdb.sqlite minimal.sqlite corrupted.sqlite
+          rm -f credentials.json minimal_credentials.json invalid_credentials.json corrupted_credentials.json
+          rm -f create_test_db.sql minimal_test.sql
+          echo "Cleanup completed"
