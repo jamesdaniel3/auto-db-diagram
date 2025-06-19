@@ -1,9 +1,32 @@
 #!/bin/bash
 
 validate_config() {
-    if [ "$DATABASE_TYPE" = "null" ] || [ "$HOST" = "null" ] || \
-       [ "$PORT" = "null" ] || [ "$USERNAME" = "null" ] || \
-       [ "$DATABASE_NAME" = "null" ]; then
-        error "Missing required configuration fields in JSON. Required: DATABASE_TYPE, HOST, PORT, USERNAME, DATABASE_NAME"
-    fi
+    case "$DATABASE_TYPE" in 
+        postgres)
+            if [ -z "$HOST" ] || [ "$HOST" = "null" ]; then
+                error "Missing or invalid 'host' field in connection_info"
+            fi
+            
+            if [ -z "$PORT" ] || [ "$PORT" = "null" ]; then
+                error "Missing or invalid 'port' field in connection_info"
+            fi
+            
+            if [ -z "$USERNAME" ] || [ "$USERNAME" = "null" ]; then
+                error "Missing or invalid 'username' field in connection_info"
+            fi
+            
+            if [ -z "$DATABASE_NAME" ] || [ "$DATABASE_NAME" = "null" ]; then
+                error "Missing or invalid 'database_name' field in connection_info"
+            fi
+            ;;
+        sqlite)
+            if [ -z "$DATABASE_LOCATION" ] || [ "$DATABASE_LOCATION" = "null" ]; then
+                error "Missing or invalid 'database_location' field in connection_info"
+            fi
+            ;;
+        *)
+            error "Configuration for database type '$DATABASE_TYPE' is not currently supported"
+            exit 1
+            ;;
+    esac
 }
