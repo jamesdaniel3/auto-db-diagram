@@ -1,7 +1,7 @@
 #!/bin/bash
 
 run_postgres_extraction() {
-    local SCRIPT_DIR="$1"
+    # local SCRIPT_DIR="$1"
     local QUERY_FILE="$SCRIPT_DIR/queries/postgres.sql"
     OUTPUT_FILE="${DATABASE_NAME}_schema.json"
 
