@@ -162,7 +162,6 @@ run_headless_mode() {
     
     # check required tools
     check_tool jq
-    check_tool psql
     check_tool dot  # for Graphviz
 
     parse_config "$config_file"
@@ -171,6 +170,7 @@ run_headless_mode() {
     # load DB-specific handlers
     case "$DATABASE_TYPE" in
         postgres)
+            check_tool psql
             source "$SCRIPT_DIR/lib/database/postgres.sh"
             if ! run_postgres_extraction; then
                 error "Failed to extract PostgreSQL schema"
@@ -200,7 +200,6 @@ run_headless_mode() {
 
 run_interactive_mode() {
     # check required tools
-    check_tool psql
     check_tool dot  # for Graphviz
 
     get_database_config
@@ -208,6 +207,7 @@ run_interactive_mode() {
     # load DB-specific handlers
     case "$DATABASE_TYPE" in
         postgres)
+            check_tool psql
             source "$SCRIPT_DIR/lib/database/postgres.sh"
             if ! run_postgres_extraction; then
                 error "Failed to extract PostgreSQL schema"
