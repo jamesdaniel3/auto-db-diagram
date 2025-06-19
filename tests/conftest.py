@@ -12,6 +12,7 @@ VALID_CONFIGS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'
 # Config file paths
 VALID_POSTGRES_CONFIG = os.path.join(VALID_CONFIGS_DIR, 'valid_postgres.json')
 VALID_SQLITE_CONFIG = os.path.join(VALID_CONFIGS_DIR, 'valid_sqlite.json')
+VALID_MYSQL_CONFIG = os.path.join(VALID_CONFIGS_DIR, 'valid_mysql.json')
 MIXED_CASE_CONFIG = os.path.join(VALID_CONFIGS_DIR, 'mixed_case_fields.json')
 
 INVALID_JSON = os.path.join(INVALID_CONFIGS_DIR, 'invalid_json.txt')

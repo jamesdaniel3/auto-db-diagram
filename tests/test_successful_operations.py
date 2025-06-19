@@ -1,5 +1,5 @@
 import pytest
-from conftest import VALID_POSTGRES_CONFIG, VALID_SQLITE_CONFIG, MIXED_CASE_CONFIG, check_for_real_tools
+from conftest import VALID_POSTGRES_CONFIG, VALID_SQLITE_CONFIG, VALID_MYSQL_CONFIG, MIXED_CASE_CONFIG, check_for_real_tools
 
 class TestConfigurationParsing:
     """Test successful configuration parsing and validation"""
@@ -24,7 +24,25 @@ class TestConfigurationParsing:
     
     def test_valid_sqlite_config_parsing_success(self, script_runner, mock_tools_env):
         """Valid configuration should parse without config-related errors"""
-        code, stdout, stderr = script_runner(['--headless', VALID_POSTGRES_CONFIG], 
+        code, stdout, stderr = script_runner(['--headless', VALID_SQLITE_CONFIG], 
+                                           mock_tools_env=mock_tools_env)
+        combined_output = stdout + stderr
+        
+        # Should not fail due to config parsing issues
+        config_errors = ['not valid JSON', 'missing', 'required', 'unsupported']
+        tool_errors = ['is not installed', 'not in PATH']
+        
+        for error in config_errors + tool_errors:
+            assert error not in combined_output
+        
+        # If it fails, should be due to database connection, not config
+        if code != 0:
+            assert any(keyword in combined_output.lower() 
+                      for keyword in ['connection', 'connect', 'database'])
+    
+    def test_valid_mysql_config_parsing_success(self, script_runner, mock_tools_env):
+        """Valid configuration should parse without config-related errors"""
+        code, stdout, stderr = script_runner(['--headless', VALID_MYSQL_CONFIG], 
                                            mock_tools_env=mock_tools_env)
         combined_output = stdout + stderr
         
