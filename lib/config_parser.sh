@@ -58,6 +58,16 @@ parse_config() {
         .[0].value // empty
     ' <<< "$CONNECTION_INFO")
 
+
+    EXCLUDED_TABLES=()
+    while IFS= read -r table; do
+        [[ -n "$table" ]] && EXCLUDED_TABLES+=("$table")
+    done < <(jq -r '
+        to_entries | 
+        map(select(.key | ascii_downcase == "excluded_tables")) | 
+        .[0].value[]? // empty
+    ' "$CONFIG_FILE")
+
     # Parse output file (optional, case-insensitive)
     OUTPUT_FILE=$(jq -r '
         to_entries | 
