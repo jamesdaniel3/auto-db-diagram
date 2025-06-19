@@ -8,7 +8,15 @@ run_postgres_extraction() {
         error "Query file not found: $QUERY_FILE"
     fi
 
+    EXCLUSION_CONDITION=""
+    if [ ${#EXCLUDED_TABLES[@]} -gt 0 ]; then
+        EXCLUDED_LIST=$(printf "'%s'," "${EXCLUDED_TABLES[@]}")
+        EXCLUDED_LIST="${EXCLUDED_LIST%,}" 
+        EXCLUSION_CONDITION="AND t.table_name NOT IN (${EXCLUDED_LIST})"
+    fi
+
     QUERY=$(<"$QUERY_FILE")
+    QUERY="${QUERY//--EXCLUSION_PLACEHOLDER--/$EXCLUSION_CONDITION}"
     
     echo "Connecting to $DATABASE_TYPE at $HOST:$PORT..."
 
