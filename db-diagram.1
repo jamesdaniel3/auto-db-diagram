@@ -29,7 +29,7 @@ Run in interactive mode with guided database connection setup.
 .B db-diagram --headless <path/to/config.json>
 Generate diagram using existing configuration file.
 .SH CONFIGURATION
-Configuration files should be in JSON format with the following structure:
+Configuration files should be in JSON format with one of the following structures:
 .PP
 .RS
 .nf
@@ -41,8 +41,13 @@ Configuration files should be in JSON format with the following structure:
     "username": "dbuser",
     "database_name": "mydb",
     "password": "secret"
-  },
-  "output_file": "schema.json"
+  }
+}
+{
+  "database_type": "sqlite",
+  "connection_info": {
+    "database_location": <path/to/database_file.db>,
+  }
 }
 .fi
 .RE
@@ -50,6 +55,8 @@ Configuration files should be in JSON format with the following structure:
 .TP
 .B PostgreSQL
 Full support for PostgreSQL databases (version 9.0+)
+.B PostgreSQL
+Full support for SQLite databases
 .SH FILES
 .TP
 .I database_schema.json
