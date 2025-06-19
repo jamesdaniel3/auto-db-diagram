@@ -1,12 +1,5 @@
 #!/bin/bash
 
-DATABASE_TYPE=""
-DB_HOST=""
-DB_PORT=""
-DB_USERNAME=""
-DB_NAME=""
-DB_PASSWORD=""
-
 get_database_display_name() {
     # add more as needed
     case "$1" in
@@ -161,5 +154,4 @@ get_database_config() {
             error "Configuration for database type '$DATABASE_TYPE' is not currently supported"
             exit 1
     esac
-
 }
