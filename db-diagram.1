@@ -34,20 +34,22 @@ Configuration files should be in JSON format with one of the following structure
 .RS
 .nf
 {
-  "database_type": "postgres",
+  "database_type": "string",
   "connection_info": {
-    "host": "localhost",
-    "port": 5432,
-    "username": "dbuser",
-    "database_name": "mydb",
-    "password": "secret"
-  }
+    "host": "string",
+    "port": int,
+    "username": "string",
+    "database_name": "string",
+    "password": "optional string"
+  },
+  "excluded_tables": ["optional list of strings"]
 }
 {
   "database_type": "sqlite",
   "connection_info": {
     "database_location": <path/to/database_file.db>,
-  }
+  },
+  "excluded_tables": ["optional list of strings"]
 }
 .fi
 .RE
