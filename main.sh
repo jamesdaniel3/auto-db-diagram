@@ -178,8 +178,15 @@ run_headless_mode() {
         postgres)
             source "$SCRIPT_DIR/lib/database/postgres.sh"
             echo "Extracting PostgreSQL schema..."
-            if ! run_postgres_extraction "$SCRIPT_DIR"; then
+            if ! run_postgres_extraction; then
                 error "Failed to extract PostgreSQL schema"
+            fi
+            ;;
+        sqlite)
+            source "$SCRIPT_DIR/lib/database/sqlite.sh"
+            echo "Extracting SQLite schema..."
+            if ! run_sqlite_extraction; then 
+                error "Failed to extract SQLite scheam;"
             fi
             ;;
         *)
@@ -210,14 +217,14 @@ run_interactive_mode() {
         postgres)
             source "$SCRIPT_DIR/lib/database/postgres.sh"
             echo "Extracting PostgreSQL schema..."
-            if ! run_postgres_extraction "$SCRIPT_DIR"; then
+            if ! run_postgres_extraction; then
                 error "Failed to extract PostgreSQL schema"
             fi
             ;;
         sqlite)
             source "$SCRIPT_DIR/lib/database/sqlite.sh"
             echo "Extracting SQLite schema..."
-            if ! run_sqlite_extraction "$SCRIPT_DIR"; then
+            if ! run_sqlite_extraction; then
                 error "Failed to extract SQLite schema"
             fi
             ;;
