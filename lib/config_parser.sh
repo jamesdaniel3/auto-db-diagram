@@ -13,10 +13,6 @@ parse_config() {
         map(select(.key | ascii_downcase == "database_type")) | 
         .[0].value // empty
     ' "$CONFIG_FILE")
-    
-    if [ -z "$DATABASE_TYPE" ] || [ "$DATABASE_TYPE" = "null" ]; then
-        error "Missing or invalid 'database_type' field in config"
-    fi
 
     # Extract connection_info object (case-insensitive)
     CONNECTION_INFO=$(jq -r '

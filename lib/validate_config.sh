@@ -1,6 +1,10 @@
 #!/bin/bash
 
 validate_config() {
+    if [ -z "$DATABASE_TYPE" ] || [ "$DATABASE_TYPE" = "null" ]; then
+        error "Missing or invalid 'database_type' field in config"
+    fi
+
     case "$DATABASE_TYPE" in 
         postgres)
             if [ -z "$HOST" ] || [ "$HOST" = "null" ]; then
