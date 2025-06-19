@@ -176,6 +176,13 @@ run_headless_mode() {
                 error "Failed to extract PostgreSQL schema"
             fi
             ;;
+        mysql)
+            check_tool mysql
+            source "$SCRIPT_DIR/lib/database/mysql.sh"
+            if ! run_mysql_extraction; then
+                error "Failed to extract MySQL schema"
+            fi
+            ;;
         sqlite)
             source "$SCRIPT_DIR/lib/database/sqlite.sh"
             if ! run_sqlite_extraction; then 
@@ -211,6 +218,13 @@ run_interactive_mode() {
             source "$SCRIPT_DIR/lib/database/postgres.sh"
             if ! run_postgres_extraction; then
                 error "Failed to extract PostgreSQL schema"
+            fi
+            ;;
+        mysql)
+            check_tool mysql
+            source "$SCRIPT_DIR/lib/database/mysql.sh"
+            if ! run_mysql_extraction; then
+                error "Failed to extract MySQL schema"
             fi
             ;;
         sqlite)
