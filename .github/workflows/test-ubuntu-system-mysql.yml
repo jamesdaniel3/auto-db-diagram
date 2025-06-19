@@ -1,7 +1,7 @@
-name: Ubuntu postgres system tests
+name: Ubuntu MySQL system tests
 on:
-  # pull_request:
-  #   branches: [main]
+  pull_request:
+    branches: [main]
 jobs:
   test:
     runs-on: ${{ matrix.os }}
@@ -9,11 +9,11 @@ jobs:
       matrix:
         include:
           - os: ubuntu-24.04
-            postgres_version: "16"
+            mysql_version: "8.0"
             arch: x64
 
           - os: ubuntu-22.04
-            postgres_version: "14"
+            mysql_version: "8.0"
             arch: x64
     steps:
       - name: Debug runner specs
@@ -35,34 +35,37 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt-get install -y jq graphviz postgresql-${{ matrix.postgres_version }} postgresql-client-${{ matrix.postgres_version }} postgresql-contrib-${{ matrix.postgres_version }}
+          sudo apt-get install -y jq graphviz mysql-server mysql-client
 
-      - name: Start PostgreSQL service
+      - name: Start MySQL service
         run: |
-          sudo systemctl start postgresql
-          sudo systemctl enable postgresql
+          sudo systemctl start mysql
+          sudo systemctl enable mysql
 
-          # Wait for PostgreSQL to start
-          sleep 5
+          # Wait for MySQL to start
+          sleep 10
 
           # Check if service is running
-          sudo systemctl status postgresql
+          sudo systemctl status mysql
 
-      - name: Setup PostgreSQL user and database
+      - name: Setup MySQL user and database
         run: |
-          # Switch to postgres user and create test user and database
-          sudo -u postgres psql << 'EOF'
-          CREATE USER testuser WITH SUPERUSER PASSWORD 'testpassword';
-          CREATE DATABASE testdb OWNER testuser;
+          # Set root password and create test user and database
+          sudo mysql << 'EOF'
+          ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'rootpassword';
+          CREATE USER 'testuser'@'localhost' IDENTIFIED BY 'testpassword';
+          CREATE DATABASE testdb;
+          GRANT ALL PRIVILEGES ON testdb.* TO 'testuser'@'localhost';
+          FLUSH PRIVILEGES;
           EOF
 
       - name: Create test database schema
         run: |
           # Create tables with foreign key relationship
-          PGPASSWORD=testpassword psql -h localhost -U testuser -d testdb << 'EOF'
+          mysql -h localhost -u testuser -ptestpassword testdb << 'EOF'
           -- Create users table (parent)
           CREATE TABLE users (
-            id SERIAL PRIMARY KEY,
+            id INT AUTO_INCREMENT PRIMARY KEY,
             username VARCHAR(50) NOT NULL UNIQUE,
             email VARCHAR(100) NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -70,12 +73,13 @@ jobs:
 
           -- Create posts table (child with foreign key)
           CREATE TABLE posts (
-            id SERIAL PRIMARY KEY,
-            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
             title VARCHAR(200) NOT NULL,
             content TEXT,
             published BOOLEAN DEFAULT FALSE,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
           );
 
           -- Insert some sample data
@@ -93,10 +97,10 @@ jobs:
         run: |
           cat > credentials.json << 'EOF'
           {
-            "DATABASE_TYPE": "postgres",
+            "DATABASE_TYPE": "mysql",
             "CONNECTION_INFO": {
               "HOST": "localhost",
-              "PORT": 5432,
+              "PORT": 3306,
               "USERNAME": "testuser",
               "DATABASE_NAME": "testdb",
               "PASSWORD": "testpassword"
@@ -114,30 +118,30 @@ jobs:
         run: |
           # Look for PNG files in common output locations
           if ls *.png 1> /dev/null 2>&1; then
-            echo "✅ PNG file(s) found in current directory:"
+            echo "PNG file(s) found in current directory:"
             ls -la *.png
           elif find . -name "*.png" -type f | head -1; then
-            echo "✅ PNG file(s) found:"
+            echo "PNG file(s) found:"
             find . -name "*.png" -type f -exec ls -la {} \;
           else
-            echo "❌ No PNG files found!"
+            echo "No PNG files found!"
             echo "Current directory contents:"
             ls -la
             exit 1
           fi
 
       # removed to avoid paying for storage
-      - name: Upload generated diagram as artifact
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: db-diagram-${{ matrix.os }}-${{ matrix.postgres_version }}
-          path: |
-            *.png
-            **/*.png
-          if-no-files-found: warn
+      # - name: Upload generated diagram as artifact
+      #   uses: actions/upload-artifact@v4
+      #   if: always()
+      #   with:
+      #     name: db-diagram-mysql-${{ matrix.os }}-${{ matrix.mysql_version }}
+      #     path: |
+      #       *.png
+      #       **/*.png
+      #     if-no-files-found: warn
 
-      - name: Stop PostgreSQL (cleanup)
+      - name: Stop MySQL (cleanup)
         if: always()
         run: |
-          sudo systemctl stop postgresql || true
+          sudo systemctl stop mysql || true
