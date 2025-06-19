@@ -3,7 +3,8 @@
 run_sqlite_extraction() {
     # extract database name from filepath for output file
     local DB_NAME
-    DB_NAME=$(basename "$DATABASE_LOCATION" .db)
+    DB_NAME=$(basename "$DATABASE_LOCATION")  
+    DB_NAME=${DB_NAME%%.*}   
     OUTPUT_FILE="${DB_NAME}_schema.json"
 
     # check if database file exists
@@ -36,7 +37,7 @@ EOF
     cat > "$OUTPUT_FILE" <<EOF
 {
   "database_info": {
-    "database_name": "$(basename "$DATABASE_LOCATION" .db)",
+    "database_name": "$DB_NAME",
     "database_type": "sqlite",
     "extracted_at": "$(date -u +"%Y-%m-%dT%H:%M:%S")Z"
   },
@@ -121,7 +122,7 @@ COLDATA
                 
                 # check for primary key constraint
                 local pk_cols
-                pk_cols=$(sqlite3 "$DATABASE_LOCATION" "SELECT name FROM pragma_table_info('$table') WHERE pk > 0 ORDER BY pk;" 2>/dev/null)
+                pk_cols=$(sqlite3 "$DATABASE_LOCATION" "SELECT GROUP_CONCAT(name, ', ') FROM (SELECT name FROM pragma_table_info('$table') WHERE pk > 0 ORDER BY pk);" 2>/dev/null)
                 if [[ -n "$pk_cols" ]]; then
                     if [ "$constraint_found" = true ]; then
                         echo "        ," >> "$OUTPUT_FILE"
