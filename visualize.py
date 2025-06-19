@@ -36,9 +36,7 @@ def generate_dot_from_database_schema(schema_data: Dict[str, Any]) -> str:
     
 """
     
-    # Filter out migration tables
-    tables = [table for table in schema_data['tables'] 
-              if not table['name'].startswith('knex_')]
+    tables = [table for table in schema_data['tables'] ]
     
     # Generate table definitions
     for table in tables:

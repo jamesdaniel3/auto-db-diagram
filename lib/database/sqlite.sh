@@ -25,12 +25,37 @@ run_sqlite_extraction() {
     local TABLES_FILE="$TEMP_DIR/tables.txt"
     local INDEXES_FILE="$TEMP_DIR/indexes.txt"
     
-    # get list of tables (excluding system tables)
-    sqlite3 "$DATABASE_LOCATION" "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';" > "$TABLES_FILE" 2>&1
+    local EXCLUSION_CONDITION=""
+    if [ ${#EXCLUDED_TABLES[@]} -gt 0 ]; then
+        # create SQL condition to exclude tables
+        local EXCLUDED_LIST=""
+        for table in "${EXCLUDED_TABLES[@]}"; do
+            if [[ -n "$EXCLUDED_LIST" ]]; then
+                EXCLUDED_LIST="$EXCLUDED_LIST OR "
+            fi
+            EXCLUDED_LIST="${EXCLUDED_LIST}name = '$table'"
+        done
+        EXCLUSION_CONDITION=" AND NOT ($EXCLUDED_LIST)"
+    fi
     
-    # get indexes
+    # get list of tables (excluding system tables and excluded tables)
+    sqlite3 "$DATABASE_LOCATION" "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'${EXCLUSION_CONDITION};" > "$TABLES_FILE" 2>&1
+    
+    # get indexes (also excluding indexes for excluded tables)
+    local INDEX_EXCLUSION=""
+    if [ ${#EXCLUDED_TABLES[@]} -gt 0 ]; then
+        local EXCLUDED_TBL_LIST=""
+        for table in "${EXCLUDED_TABLES[@]}"; do
+            if [[ -n "$EXCLUDED_TBL_LIST" ]]; then
+                EXCLUDED_TBL_LIST="$EXCLUDED_TBL_LIST OR "
+            fi
+            EXCLUDED_TBL_LIST="${EXCLUDED_TBL_LIST}tbl_name = '$table'"
+        done
+        INDEX_EXCLUSION=" AND NOT ($EXCLUDED_TBL_LIST)"
+    fi
+    
     sqlite3 "$DATABASE_LOCATION" <<EOF > "$INDEXES_FILE" 2>/dev/null
-SELECT name, tbl_name, sql FROM sqlite_master WHERE type='index' AND name NOT LIKE 'sqlite_%';
+SELECT name, tbl_name, sql FROM sqlite_master WHERE type='index' AND name NOT LIKE 'sqlite_%'${INDEX_EXCLUSION};
 EOF
 
     # start building JSON output
@@ -50,6 +75,20 @@ EOF
     while IFS= read -r table; do
         # skip empty lines
         if [[ -n "$table" ]]; then
+            # double-check if table should be excluded 
+            local should_exclude=false
+            for excluded_table in "${EXCLUDED_TABLES[@]}"; do
+                if [[ "$table" == "$excluded_table" ]]; then
+                    should_exclude=true
+                    break
+                fi
+            done
+            
+            if [ "$should_exclude" = true ]; then
+                echo "Debug: Skipping excluded table '$table'"
+                continue
+            fi
+            
             table_count=$((table_count + 1))
             
             if [ "$first_table" = false ]; then
@@ -207,7 +246,7 @@ EOF
     rm -rf "$TEMP_DIR"
     
     if [ -f "$OUTPUT_FILE" ] && [ -s "$OUTPUT_FILE" ]; then
-        echo "Schema extracted to '$OUTPUT_FILE'"
+        echo "Schema extracted to '$OUTPUT_FILE' (excluded ${#EXCLUDED_TABLES[@]} tables)"
     else
         error "Failed to extract schema or create output file"
     fi

@@ -20,6 +20,7 @@ WITH table_info AS (
         AND t.table_schema = c.table_schema
     WHERE t.table_type = 'BASE TABLE'
         AND t.table_schema NOT IN ('information_schema', 'pg_catalog')
+        --EXCLUSION_PLACEHOLDER--
     GROUP BY t.table_schema, t.table_name
 ),
 constraint_info AS (
