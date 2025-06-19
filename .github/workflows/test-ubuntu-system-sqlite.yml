@@ -1,4 +1,4 @@
-name: macOS SQLite system tests
+name: Ubuntu SQLite system tests
 on:
   pull_request:
     branches: [main]
@@ -8,30 +8,29 @@ jobs:
     strategy:
       matrix:
         include:
-          # - os: macos-13
-          #   arch: intel
+          - os: ubuntu-22.04
+            arch: x64
 
-          # - os: macos-14
-          #   arch: arm64
-
-          # - os: macos-15
-          #   arch: arm64
+          - os: ubuntu-24.04
+            arch: x64
     steps:
       - name: Debug runner specs
         run: |
           echo "Runner: ${{ runner.os }} ${{ runner.arch }}"
           echo "Matrix OS: ${{ matrix.os }}"
-          echo "CPU cores: $(sysctl -n hw.ncpu)"
-          echo "Memory: $(sysctl -n hw.memsize | awk '{print $1/1024/1024/1024 " GB"}')"
-          echo "Processor: $(sysctl -n machdep.cpu.brand_string)"
+          echo "CPU cores: $(nproc)"
+          echo "Memory: $(free -h | grep '^Mem:' | awk '{print $2}')"
+          echo "Processor: $(lscpu | grep 'Model name' | cut -d':' -f2 | xargs)"
           echo "Architecture: $(uname -m)"
+          echo "Ubuntu version: $(lsb_release -d | cut -f2)"
 
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Install dependencies
         run: |
-          brew install jq graphviz sqlite
+          sudo apt-get update
+          sudo apt-get install -y jq graphviz sqlite3
           # Verify sqlite3 is available
           sqlite3 --version
 
@@ -139,7 +138,7 @@ jobs:
 
       - name: Run script with SQLite database
         run: |
-          echo "Running SQLite diagram generation on macOS (${{ runner.arch }})"
+          echo "Running SQLite diagram generation on Ubuntu ${{ matrix.os }} (${{ runner.arch }})"
           chmod +x main.sh
           ./main.sh --headless credentials.json
 
@@ -169,7 +168,7 @@ jobs:
             echo "File size: $(ls -lh "$PNG_FILE" | awk '{print $5}')"
             
             # Check if file is not empty and has reasonable size
-            FILE_SIZE=$(stat -f%z "$PNG_FILE" 2>/dev/null || stat -c%s "$PNG_FILE" 2>/dev/null)
+            FILE_SIZE=$(stat -c%s "$PNG_FILE")
             if [[ $FILE_SIZE -gt 1000 ]]; then
               echo "Diagram file size looks reasonable: $FILE_SIZE bytes"
             else
@@ -185,7 +184,8 @@ jobs:
           echo "Verifying database integrity after diagram generation..."
 
           # Check that database is still accessible and intact
-          sqlite3 testdb.sqlite "PRAGMA integrity_check;" | head -1
+          INTEGRITY_CHECK=$(sqlite3 testdb.sqlite "PRAGMA integrity_check;" | head -1)
+          echo "Database integrity: $INTEGRITY_CHECK"
 
           # Verify our test data is still there
           USER_COUNT=$(sqlite3 testdb.sqlite "SELECT COUNT(*) FROM users;")
@@ -254,17 +254,59 @@ jobs:
           echo "Testing error handling with non-existent database..."
 
           # This should fail gracefully
-          if ./main.sh --headless invalid_credentials.json; then
+          set +e  # Don't exit on error
+          OUTPUT=$(./main.sh --headless invalid_credentials.json 2>&1)
+          EXIT_CODE=$?
+          set -e  # Re-enable exit on error
+
+          echo "Exit code: $EXIT_CODE"
+          echo "Output: $OUTPUT"
+
+          if [[ $EXIT_CODE -eq 0 ]]; then
             echo "Script succeeded with non-existent database (unexpected)"
+            exit 1
           else
             echo "Script properly handled non-existent database error"
           fi
+
+      - name: Test Ubuntu-specific features
+        run: |
+          # Test with different file permissions
+          echo "Testing file permission handling..."
+
+          # Create a database with restricted permissions
+          cp testdb.sqlite readonly.sqlite
+          chmod 444 readonly.sqlite  # Read-only
+
+          cat > readonly_credentials.json << 'EOF'
+          {
+            "DATABASE_TYPE": "sqlite",
+            "CONNECTION_INFO": {
+              "DATABASE_LOCATION": "./readonly.sqlite"
+            }
+          }
+          EOF
+
+          # This should work (read-only is fine for diagram generation)
+          if ./main.sh --headless readonly_credentials.json; then
+            echo "Successfully handled read-only database"
+          else
+            echo "Read-only database test failed (may be expected depending on implementation)"
+          fi
+
+      - name: Check package versions
+        run: |
+          echo "📦 Package versions:"
+          echo "SQLite: $(sqlite3 --version)"
+          echo "Graphviz: $(dot -V 2>&1)"
+          echo "jq: $(jq --version)"
+          echo "bash: $BASH_VERSION"
 
       - name: Cleanup test files
         if: always()
         run: |
           echo "Cleaning up test files..."
-          rm -f testdb.sqlite minimal.sqlite corrupted.sqlite
-          rm -f credentials.json minimal_credentials.json invalid_credentials.json corrupted_credentials.json
+          rm -f testdb.sqlite minimal.sqlite corrupted.sqlite readonly.sqlite
+          rm -f credentials.json minimal_credentials.json invalid_credentials.json corrupted_credentials.json readonly_credentials.json
           rm -f create_test_db.sql minimal_test.sql
           echo "Cleanup completed"
