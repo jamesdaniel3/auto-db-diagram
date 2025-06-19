@@ -102,7 +102,7 @@ generate_erd_diagram() {
     local png_file="ERD.png"
     
     if [ ! -f "$dot_file" ]; then
-        echo "❌ DOT file '$dot_file' not found"
+        echo "DOT file '$dot_file' not found"
         echo "Make sure visualize.py successfully generated the DOT file"
         return 1
     fi
@@ -121,7 +121,7 @@ generate_erd_diagram() {
         open_image_if_possible "$png_file"
         return 0
     else
-        echo "❌ Failed to generate PNG from DOT file"
+        echo "Failed to generate PNG from DOT file"
         echo "Manual generation command: dot -Tpng $dot_file -o $png_file"
         return 1
     fi
@@ -227,6 +227,13 @@ run_interactive_mode() {
                 error "Failed to extract PostgreSQL schema"
             fi
             ;;
+        sqlite)
+            source "$SCRIPT_DIR/lib/database/sqlite.sh"
+            echo "Extracting SQLite schema..."
+            if ! run_sqlite_extraction "$SCRIPT_DIR"; then
+                error "Failed to extract SQLite schema"
+            fi
+            ;;
         *)
             error "Unsupported database type: $DATABASE_TYPE"
             ;;
@@ -239,8 +246,6 @@ run_interactive_mode() {
     if ! generate_erd_diagram; then
         error "Failed to generate ERD diagram"
     fi
-    
-    echo "🎉 Interactive mode completed successfully!"
     
     # clean up temporary config 
     rm -f "$temp_config"
