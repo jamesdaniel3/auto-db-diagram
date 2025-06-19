@@ -16,11 +16,11 @@ run_sqlite_extraction() {
         error "sqlite3 command not found. Please install SQLite3."
     fi
 
-    echo "Connecting to SQLite database: $DATABASE_LOCATION..."
+    echo "Connecting to SQLite database: $DB_NAME..."
     
     # create temporary files for intermediate data
     local TEMP_DIR
-    TEMP_DIR=$(mktemp) || error "Failed to create temporary file"
+    TEMP_DIR=$(mktemp -d) || error "Failed to create temporary file"
     local TABLES_FILE="$TEMP_DIR/tables.txt"
     local INDEXES_FILE="$TEMP_DIR/indexes.txt"
     
