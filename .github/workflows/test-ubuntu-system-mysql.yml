@@ -49,10 +49,10 @@ jobs:
           sudo systemctl status mysql
 
       - name: Setup MySQL user and database
-        if: matrix.db_type == 'mysql'
         run: |
-          sudo mysql -u root << 'EOF'
-          ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'rootpassword';
+          sudo mysqladmin -u root password 'rootpassword'
+
+          mysql -u root -prootpassword << 'EOF'
           CREATE USER 'testuser'@'localhost' IDENTIFIED BY 'testpassword';
           CREATE DATABASE testdb;
           GRANT ALL PRIVILEGES ON testdb.* TO 'testuser'@'localhost';
