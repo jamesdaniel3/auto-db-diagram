@@ -6,7 +6,7 @@ validate_config() {
     fi
 
     case "$DATABASE_TYPE" in 
-        postgres)
+        "postgres"|"mysql")
             if [ -z "$HOST" ] || [ "$HOST" = "null" ]; then
                 error "Missing or invalid 'host' field in connection_info"
             fi
