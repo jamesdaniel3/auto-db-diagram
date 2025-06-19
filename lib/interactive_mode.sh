@@ -126,14 +126,19 @@ get_mysql_or_psql_config() {
         fi
     done
 
-    while true; do
-        read -rp "Enter your $username_label: " USERNAME
-        if [ -n "$USERNAME" ]; then
-            break
-        else 
-            echo "${username_label^} is required."
-        fi
-    done
+    if [[ "$db_type" == "mysql" ]]; then
+        read -rp "Enter your $username_label (default: root): " USERNAME
+        [ -z "$USERNAME" ] && USERNAME="root"
+    else
+        while true; do
+            read -rp "Enter your $username_label: " USERNAME
+            if [ -n "$USERNAME" ]; then
+                break
+            else 
+                echo "A $username_label is required."
+            fi
+        done
+    fi
 
     while true; do
         read -rp "Enter your database name: " DATABASE_NAME
