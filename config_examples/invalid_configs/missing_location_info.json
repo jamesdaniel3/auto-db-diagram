@@ -1,0 +1,11 @@
+{
+  "database_type": "sqlite",
+  "connection_info": {
+    "location": "/Users/jamesdaniel/Desktop/sqlite-testing/test.db",
+    "host": "localhost",
+    "port": 5432,
+    "username": "postgres",
+    "database_name": "test_db",
+    "password": "password"
+  }
+}

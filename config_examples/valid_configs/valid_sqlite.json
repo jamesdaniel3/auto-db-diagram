@@ -1,0 +1,6 @@
+{
+  "database_type": "sqlite",
+  "connection_info": {
+    "database_location": "/Users/jamesdaniel/Desktop/sqlite-testing/test.db"
+  }
+}
