@@ -223,7 +223,7 @@ jobs:
           {
             "DATABASE_TYPE": "sqlite",
             "CONNECTION_INFO": {
-              "DATABASE_PATH": "./minimal.sqlite"
+              "DATABASE_LOCATION": "./minimal.sqlite"
             }
           }
           EOF
@@ -246,7 +246,7 @@ jobs:
           {
             "DATABASE_TYPE": "sqlite",
             "CONNECTION_INFO": {
-              "DATABASE_PATH": "./nonexistent.sqlite"
+              "DATABASE_LOCATION": "./nonexistent.sqlite"
             }
           }
           EOF
@@ -259,40 +259,6 @@ jobs:
           else
             echo "Script properly handled non-existent database error"
           fi
-
-      - name: Test with corrupted SQLite database
-        run: |
-          # Create a corrupted database file
-          echo "This is not a valid SQLite database" > corrupted.sqlite
-
-          cat > corrupted_credentials.json << 'EOF'
-          {
-            "DATABASE_TYPE": "sqlite",
-            "CONNECTION_INFO": {
-              "DATABASE_PATH": "./corrupted.sqlite"
-            }
-          }
-          EOF
-
-          echo "Testing error handling with corrupted database..."
-
-          # This should fail gracefully
-          if ./main.sh --headless corrupted_credentials.json; then
-            echo "Script succeeded with corrupted database (unexpected)"
-          else
-            echo "Script properly handled corrupted database error"
-          fi
-
-      # removed to avoid paying for storage
-      # - name: Upload generated diagrams as artifacts
-      #   uses: actions/upload-artifact@v4
-      #   if: always()
-      #   with:
-      #     name: sqlite-diagrams-${{ matrix.os }}-${{ matrix.arch }}
-      #     path: |
-      #       *.png
-      #       **/*.png
-      #     if-no-files-found: warn
 
       - name: Cleanup test files
         if: always()
