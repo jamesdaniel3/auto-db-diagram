@@ -63,26 +63,25 @@ open_image_if_possible() {
         return 1
     fi
     
-    echo "Attempting to open ERD diagram..."
-    
     # Detect OS and try appropriate open command
     case "$(uname -s)" in
         Darwin)
             # macOS
             if command -v open >/dev/null 2>&1; then
-                open "$image_file" && echo "Opened $image_file with default viewer"
+                open "$image_file" 
             else
                 echo "Note: 'open' command not available on macOS"
+                echo "PNG can be found at the listed filepath"
             fi
             ;;
         Linux)
             # Linux - try various methods
             if command -v xdg-open >/dev/null 2>&1 && [ -n "$DISPLAY" ]; then
-                xdg-open "$image_file" && echo "Opened $image_file with default viewer"
+                xdg-open "$image_file" 
             elif command -v gnome-open >/dev/null 2>&1 && [ -n "$DISPLAY" ]; then
-                gnome-open "$image_file" && echo "Opened $image_file with GNOME viewer"
+                gnome-open "$image_file" 
             elif command -v kde-open >/dev/null 2>&1 && [ -n "$DISPLAY" ]; then
-                kde-open "$image_file" && echo "Opened $image_file with KDE viewer"
+                kde-open "$image_file" 
             else
                 echo "Note: No GUI available or display not set. $image_file generated successfully."
                 echo "To view the image manually:"
@@ -107,9 +106,7 @@ generate_erd_diagram() {
         return 1
     fi
     
-    echo "Generating PNG from DOT file..."
     if dot -Tpng "$dot_file" -o "$png_file"; then
-        echo "ERD diagram generated"
         
         # show file info
         if [ -f "$png_file" ]; then
@@ -129,7 +126,6 @@ generate_erd_diagram() {
 
 run_visualization() {
     if [ -f "$SCRIPT_DIR/visualize.py" ]; then
-        echo "Running visualization script..."
         if command -v python3 &>/dev/null; then
             if python3 "$SCRIPT_DIR/visualize.py" "$OUTPUT_FILE"; then
                 echo "Visualization script completed successfully"
@@ -149,7 +145,6 @@ run_visualization() {
         # clean up the JSON output file if visualization successful
         if [ -f "$OUTPUT_FILE" ]; then
             rm "$OUTPUT_FILE"
-            echo "Cleaned up intermediate file: $OUTPUT_FILE"
         fi
     else
         echo "Note: visualize.py not found. Output saved to '$OUTPUT_FILE'"
@@ -177,14 +172,12 @@ run_headless_mode() {
     case "$DATABASE_TYPE" in
         postgres)
             source "$SCRIPT_DIR/lib/database/postgres.sh"
-            echo "Extracting PostgreSQL schema..."
             if ! run_postgres_extraction; then
                 error "Failed to extract PostgreSQL schema"
             fi
             ;;
         sqlite)
             source "$SCRIPT_DIR/lib/database/sqlite.sh"
-            echo "Extracting SQLite schema..."
             if ! run_sqlite_extraction; then 
                 error "Failed to extract SQLite scheam;"
             fi
@@ -216,14 +209,12 @@ run_interactive_mode() {
     case "$DATABASE_TYPE" in
         postgres)
             source "$SCRIPT_DIR/lib/database/postgres.sh"
-            echo "Extracting PostgreSQL schema..."
             if ! run_postgres_extraction; then
                 error "Failed to extract PostgreSQL schema"
             fi
             ;;
         sqlite)
             source "$SCRIPT_DIR/lib/database/sqlite.sh"
-            echo "Extracting SQLite schema..."
             if ! run_sqlite_extraction; then
                 error "Failed to extract SQLite schema"
             fi

@@ -7,6 +7,7 @@ Usage: python visualize.py <schema.json> [output.dot]
 
 import json
 import sys
+import subprocess
 import argparse
 from pathlib import Path
 from typing import Dict, List, Any, Optional
@@ -222,7 +223,6 @@ def main():
     
     try:
         # Load and process schema
-        print(f"Loading schema from: {args.input_file}")
         schema_data = load_schema_file(args.input_file)
         
         # Generate DOT content
@@ -231,22 +231,17 @@ def main():
         
         # Save DOT file
         save_dot_file(dot_content, args.output_file)
-        print(f"Generated DOT file: {args.output_file}")
         
-        # Optionally generate PNG
-        if args.png:
-            import subprocess
-            png_file = args.output_file.replace('.dot', '.png')
-            try:
-                subprocess.run(['dot', '-Tpng', args.output_file, '-o', png_file], 
-                             check=True)
-                print(f"Generated PNG file: {png_file}")
-            except subprocess.CalledProcessError:
-                print("⚠️  Failed to generate PNG. Make sure Graphviz is installed.")
-            except FileNotFoundError:
-                print("Graphviz 'dot' command not found. Install Graphviz to generate images.")
-        
-        print(f"To generate image manually: dot -Tpng {args.output_file} -o diagram.png")
+        #  generate PNG
+        png_file = args.output_file.replace('.dot', '.png')
+        try:
+            subprocess.run(['dot', '-Tpng', args.output_file, '-o', png_file], 
+                            check=True)
+            print(f"Generated PNG file: {png_file}")
+        except subprocess.CalledProcessError:
+            print("Failed to generate PNG. Make sure Graphviz is installed.")
+        except FileNotFoundError:
+            print("Graphviz 'dot' command not found. Install Graphviz to generate images.")
         
     except FileNotFoundError as e:
         print(f"Error: {e}")

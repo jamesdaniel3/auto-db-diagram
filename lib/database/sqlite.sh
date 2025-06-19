@@ -215,7 +215,6 @@ EOF
     if command -v jq >/dev/null 2>&1; then
         if jq '.' "$OUTPUT_FILE" > "${OUTPUT_FILE}.tmp" 2>/dev/null; then
             mv "${OUTPUT_FILE}.tmp" "$OUTPUT_FILE"
-            echo "JSON output formatted successfully"
         else
             echo "Warning: JSON formatting failed, keeping original output"
             rm -f "${OUTPUT_FILE}.tmp"
