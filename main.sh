@@ -199,24 +199,11 @@ run_headless_mode() {
 }
 
 run_interactive_mode() {
-    echo "Running in interactive mode..."
-    
     # check required tools
     check_tool psql
     check_tool dot  # for Graphviz
 
     get_database_config
-
-    local temp_config
-    temp_config=$(mktemp) || error "Failed to create temporary file"
-    
-    # ensure cleanup of temp file on exit
-    trap "rm -f '$temp_config'; cleanup" INT TERM QUIT EXIT
-
-    create_temp_config "$temp_config"
-
-    parse_config "$temp_config"
-    validate_config
 
     # load DB-specific handlers
     case "$DATABASE_TYPE" in
@@ -246,9 +233,6 @@ run_interactive_mode() {
     if ! generate_erd_diagram; then
         error "Failed to generate ERD diagram"
     fi
-    
-    # clean up temporary config 
-    rm -f "$temp_config"
 }
 
 # parse command line args
