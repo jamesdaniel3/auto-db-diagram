@@ -188,7 +188,7 @@ EOF
 {
     "database_type": "sqlite",
     "connection_info": {
-        "DATABASE_LOCATION": "$DATABASE_LOCATION",
+        "DATABASE_LOCATION": "$DATABASE_LOCATION"
     },
     "output_file": "database_schema.json"
 }
