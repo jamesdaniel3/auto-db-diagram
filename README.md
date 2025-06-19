@@ -19,32 +19,15 @@ db-diagram  --headless /Users/jamesdaniel/automatic-db-digrammer/config.json
 db-diagram  -h /Users/jamesdaniel/automatic-db-digrammer/config.json
 ```
 
-or it can be run in interactive mode, where it will walk you through the setup:
+The structure of valid config files varies based on the type of database you want to connect to, but examples can be found under `/configs_examples/valid_configs`.
+
+Alternatively, the program can be run in interactive mode, where it will walk you through the setup:
 
 ```
 db-diagram
 ```
 
-Here is the contents of a valid config.json file:
-
-```json
-{
-  "DATABASE_TYPE": "postgres",
-  "CONNECTION_INFO": {
-    "HOST": "localhost",
-    "PORT": 5432,
-    "USERNAME": "postgres",
-    "DATABASE_NAME": "mind-map-development"
-    "PASSWORD": "",
-  }
-}
-```
-
-The password field is optional (unless it's needed to connect to your DB!) and all fields are case-insensitive.
-
-As of the current inplementation, all of the fields in the file are required.
-
-This tool currently only supports connections to local postgreSQL instances.
+This tool currently supports connections to local postgreSQL instances and SQLite instances.
 
 ## Planned Features
 

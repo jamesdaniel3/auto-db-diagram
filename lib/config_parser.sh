@@ -13,10 +13,6 @@ parse_config() {
         map(select(.key | ascii_downcase == "database_type")) | 
         .[0].value // empty
     ' "$CONFIG_FILE")
-    
-    if [ -z "$DATABASE_TYPE" ] || [ "$DATABASE_TYPE" = "null" ]; then
-        error "Missing or invalid 'database_type' field in config"
-    fi
 
     # Extract connection_info object (case-insensitive)
     CONNECTION_INFO=$(jq -r '
@@ -56,27 +52,16 @@ parse_config() {
         .[0].value // empty
     ' <<< "$CONNECTION_INFO")
 
+    DATABASE_LOCATION=$(jq -r '
+        to_entries |
+        map(select(.key | ascii_downcase == "database_location")) |
+        .[0].value // empty
+    ' <<< "$CONNECTION_INFO")
+
     # Parse output file (optional, case-insensitive)
     OUTPUT_FILE=$(jq -r '
         to_entries | 
         map(select(.key | ascii_downcase == "output_file")) | 
         .[0].value // "database_schema.json"
     ' "$CONFIG_FILE")
-
-    # Validate required fields
-    if [ -z "$HOST" ] || [ "$HOST" = "null" ]; then
-        error "Missing or invalid 'host' field in connection info"
-    fi
-    
-    if [ -z "$PORT" ] || [ "$PORT" = "null" ]; then
-        error "Missing or invalid 'port' field in connection info"
-    fi
-    
-    if [ -z "$USERNAME" ] || [ "$USERNAME" = "null" ]; then
-        error "Missing or invalid 'username' field in connection info"
-    fi
-    
-    if [ -z "$DATABASE_NAME" ] || [ "$DATABASE_NAME" = "null" ]; then
-        error "Missing or invalid 'database_name' field in connection info"
-    fi
 }

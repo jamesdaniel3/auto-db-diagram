@@ -1,12 +1,5 @@
 #!/bin/bash
 
-DATABASE_TYPE=""
-DB_HOST=""
-DB_PORT=""
-DB_USERNAME=""
-DB_NAME=""
-DB_PASSWORD=""
-
 get_database_display_name() {
     # add more as needed
     case "$1" in
@@ -18,7 +11,7 @@ get_database_display_name() {
 }
 
 # available database types
-DATABASE_KEYS=("postgres")  # add more as needed
+DATABASE_KEYS=("postgres" "sqlite")  # add more as needed
 
 show_database_menu() {
     echo "Select the type of database you want to connect to?"
@@ -97,14 +90,14 @@ show_database_menu() {
 
 get_postgres_config() {
     tput cnorm
-    read -rp "Enter your database host (default: localhost): " DB_HOST
-    [ -z "$DB_HOST" ] && DB_HOST="localhost"
+    read -rp "Enter your database host (default: localhost): " HOST
+    [ -z "$HOST" ] && HOST="localhost"
 
     while true; do
-        read -rp "Enter your database port (default: 5432): " DB_PORT
-        [ -z "$DB_PORT" ] && DB_PORT="5432"
+        read -rp "Enter your database port (default: 5432): " PORT
+        [ -z "$PORT" ] && PORT="5432"
 
-        if [[ "$DB_PORT" =~ ^[0-9]+$ ]] && [ "$DB_PORT" -ge 1 ] && [ "$DB_PORT" -le 65535 ]; then
+        if [[ "$PORT" =~ ^[0-9]+$ ]] && [ "$PORT" -ge 1 ] && [ "$PORT" -le 65535 ]; then
             break
         else
             echo "Invalid port number. Please enter a valid port (1-65535)."
@@ -112,8 +105,8 @@ get_postgres_config() {
     done
 
     while true; do
-        read -rp "Enter your database username: " DB_USERNAME
-        if [ -n "$DB_USERNAME" ]; then
+        read -rp "Enter your database username: " USERNAME
+        if [ -n "$USERNAME" ]; then
             break
         else 
             echo "Database username is required."
@@ -121,18 +114,28 @@ get_postgres_config() {
     done
 
     while true; do
-        read -rp "Enter your database name: " DB_NAME
-        if [ -n "$DB_NAME" ]; then 
+        read -rp "Enter your database name: " DATABASE_NAME
+        if [ -n "$DATABASE_NAME" ]; then 
             break
         else
             echo "Database name is required."
         fi
     done
 
-    read -s -rp "Enter your database password (press Enter if none required): " DB_PASSWORD
+    read -s -rp "Enter your database password (press Enter if none required): " PASSWORD
     echo
+}
 
-
+get_sqlite_config() {
+    tput cnorm
+    while true; do
+        read -rp "Enter the file path to your .db file: " DATABASE_LOCATION
+        if [ -n "$DATABASE_LOCATION" ]; then
+            break
+        else 
+            echo "Database location is required."
+        fi
+    done
 }
 
 get_database_config() {
@@ -144,35 +147,11 @@ get_database_config() {
         postgres)
             get_postgres_config
             ;;
+        sqlite)
+            get_sqlite_config
+            ;;
         *)
             error "Configuration for database type '$DATABASE_TYPE' is not currently supported"
             exit 1
-    esac
-
-}
-
-create_temp_config() {
-    local config_file="$1"
-    
-    case "$DATABASE_TYPE" in
-        postgres)
-            cat > "$config_file" << EOF
-{
-    "database_type": "postgres",
-    "connection_info": {
-        "HOST": "$DB_HOST",
-        "PORT": $DB_PORT,
-        "USERNAME": "$DB_USERNAME",
-        "DATABASE_NAME": "$DB_NAME",
-        "PASSWORD": "$DB_PASSWORD"
-    },
-    "output_file": "database_schema.json"
-}
-EOF
-            ;;
-        *)
-            error "Config generation for database type '$DATABASE_TYPE' is not implemented yet"
-            exit 1
-            ;;
     esac
 }

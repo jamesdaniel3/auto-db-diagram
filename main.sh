@@ -44,7 +44,7 @@ EXAMPLES:
     db-diagram -h my-db-config.json    # Use existing config
 
 CONFIG FILE FORMAT:
-    See example config at: https://github.com/jamesdaniel3/auto-db-diagram/blob/main/example_config.json
+    See example config in /config_examples/valid_configs at: https://github.com/jamesdaniel3/auto-db-diagram
 
 EOF
 }
@@ -63,26 +63,25 @@ open_image_if_possible() {
         return 1
     fi
     
-    echo "Attempting to open ERD diagram..."
-    
     # Detect OS and try appropriate open command
     case "$(uname -s)" in
         Darwin)
             # macOS
             if command -v open >/dev/null 2>&1; then
-                open "$image_file" && echo "Opened $image_file with default viewer"
+                open "$image_file" 
             else
                 echo "Note: 'open' command not available on macOS"
+                echo "PNG can be found at the listed filepath"
             fi
             ;;
         Linux)
             # Linux - try various methods
             if command -v xdg-open >/dev/null 2>&1 && [ -n "$DISPLAY" ]; then
-                xdg-open "$image_file" && echo "Opened $image_file with default viewer"
+                xdg-open "$image_file" 
             elif command -v gnome-open >/dev/null 2>&1 && [ -n "$DISPLAY" ]; then
-                gnome-open "$image_file" && echo "Opened $image_file with GNOME viewer"
+                gnome-open "$image_file" 
             elif command -v kde-open >/dev/null 2>&1 && [ -n "$DISPLAY" ]; then
-                kde-open "$image_file" && echo "Opened $image_file with KDE viewer"
+                kde-open "$image_file" 
             else
                 echo "Note: No GUI available or display not set. $image_file generated successfully."
                 echo "To view the image manually:"
@@ -102,14 +101,12 @@ generate_erd_diagram() {
     local png_file="ERD.png"
     
     if [ ! -f "$dot_file" ]; then
-        echo "❌ DOT file '$dot_file' not found"
+        echo "DOT file '$dot_file' not found"
         echo "Make sure visualize.py successfully generated the DOT file"
         return 1
     fi
     
-    echo "Generating PNG from DOT file..."
     if dot -Tpng "$dot_file" -o "$png_file"; then
-        echo "ERD diagram generated"
         
         # show file info
         if [ -f "$png_file" ]; then
@@ -121,7 +118,7 @@ generate_erd_diagram() {
         open_image_if_possible "$png_file"
         return 0
     else
-        echo "❌ Failed to generate PNG from DOT file"
+        echo "Failed to generate PNG from DOT file"
         echo "Manual generation command: dot -Tpng $dot_file -o $png_file"
         return 1
     fi
@@ -129,7 +126,6 @@ generate_erd_diagram() {
 
 run_visualization() {
     if [ -f "$SCRIPT_DIR/visualize.py" ]; then
-        echo "Running visualization script..."
         if command -v python3 &>/dev/null; then
             if python3 "$SCRIPT_DIR/visualize.py" "$OUTPUT_FILE"; then
                 echo "Visualization script completed successfully"
@@ -149,7 +145,6 @@ run_visualization() {
         # clean up the JSON output file if visualization successful
         if [ -f "$OUTPUT_FILE" ]; then
             rm "$OUTPUT_FILE"
-            echo "Cleaned up intermediate file: $OUTPUT_FILE"
         fi
     else
         echo "Note: visualize.py not found. Output saved to '$OUTPUT_FILE'"
@@ -167,7 +162,6 @@ run_headless_mode() {
     
     # check required tools
     check_tool jq
-    check_tool psql
     check_tool dot  # for Graphviz
 
     parse_config "$config_file"
@@ -176,10 +170,16 @@ run_headless_mode() {
     # load DB-specific handlers
     case "$DATABASE_TYPE" in
         postgres)
+            check_tool psql
             source "$SCRIPT_DIR/lib/database/postgres.sh"
-            echo "Extracting PostgreSQL schema..."
-            if ! run_postgres_extraction "$SCRIPT_DIR"; then
+            if ! run_postgres_extraction; then
                 error "Failed to extract PostgreSQL schema"
+            fi
+            ;;
+        sqlite)
+            source "$SCRIPT_DIR/lib/database/sqlite.sh"
+            if ! run_sqlite_extraction; then 
+                error "Failed to extract SQLite scheam;"
             fi
             ;;
         *)
@@ -199,32 +199,24 @@ run_headless_mode() {
 }
 
 run_interactive_mode() {
-    echo "Running in interactive mode..."
-    
     # check required tools
-    check_tool psql
     check_tool dot  # for Graphviz
 
     get_database_config
 
-    local temp_config
-    temp_config=$(mktemp) || error "Failed to create temporary file"
-    
-    # ensure cleanup of temp file on exit
-    trap "rm -f '$temp_config'; cleanup" INT TERM QUIT EXIT
-
-    create_temp_config "$temp_config"
-
-    parse_config "$temp_config"
-    validate_config
-
     # load DB-specific handlers
     case "$DATABASE_TYPE" in
         postgres)
+            check_tool psql
             source "$SCRIPT_DIR/lib/database/postgres.sh"
-            echo "Extracting PostgreSQL schema..."
-            if ! run_postgres_extraction "$SCRIPT_DIR"; then
+            if ! run_postgres_extraction; then
                 error "Failed to extract PostgreSQL schema"
+            fi
+            ;;
+        sqlite)
+            source "$SCRIPT_DIR/lib/database/sqlite.sh"
+            if ! run_sqlite_extraction; then
+                error "Failed to extract SQLite schema"
             fi
             ;;
         *)
@@ -239,11 +231,6 @@ run_interactive_mode() {
     if ! generate_erd_diagram; then
         error "Failed to generate ERD diagram"
     fi
-    
-    echo "🎉 Interactive mode completed successfully!"
-    
-    # clean up temporary config 
-    rm -f "$temp_config"
 }
 
 # parse command line args

@@ -1,4 +1,4 @@
-name: macOS system tests
+name: macOS postgres system tests
 on:
   pull_request:
     branches: [main]
