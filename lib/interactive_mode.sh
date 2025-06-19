@@ -97,14 +97,14 @@ show_database_menu() {
 
 get_postgres_config() {
     tput cnorm
-    read -rp "Enter your database host (default: localhost): " DB_HOST
-    [ -z "$DB_HOST" ] && DB_HOST="localhost"
+    read -rp "Enter your database host (default: localhost): " HOST
+    [ -z "$HOST" ] && HOST="localhost"
 
     while true; do
-        read -rp "Enter your database port (default: 5432): " DB_PORT
-        [ -z "$DB_PORT" ] && DB_PORT="5432"
+        read -rp "Enter your database port (default: 5432): " PORT
+        [ -z "$PORT" ] && PORT="5432"
 
-        if [[ "$DB_PORT" =~ ^[0-9]+$ ]] && [ "$DB_PORT" -ge 1 ] && [ "$DB_PORT" -le 65535 ]; then
+        if [[ "$PORT" =~ ^[0-9]+$ ]] && [ "$PORT" -ge 1 ] && [ "$PORT" -le 65535 ]; then
             break
         else
             echo "Invalid port number. Please enter a valid port (1-65535)."
@@ -112,8 +112,8 @@ get_postgres_config() {
     done
 
     while true; do
-        read -rp "Enter your database username: " DB_USERNAME
-        if [ -n "$DB_USERNAME" ]; then
+        read -rp "Enter your database username: " USERNAME
+        if [ -n "$USERNAME" ]; then
             break
         else 
             echo "Database username is required."
@@ -121,15 +121,15 @@ get_postgres_config() {
     done
 
     while true; do
-        read -rp "Enter your database name: " DB_NAME
-        if [ -n "$DB_NAME" ]; then 
+        read -rp "Enter your database name: " DATABASE_NAME
+        if [ -n "$DATABASE_NAME" ]; then 
             break
         else
             echo "Database name is required."
         fi
     done
 
-    read -s -rp "Enter your database password (press Enter if none required): " DB_PASSWORD
+    read -s -rp "Enter your database password (press Enter if none required): " PASSWORD
     echo
 }
 
