@@ -50,7 +50,7 @@ jobs:
 
       - name: Setup MySQL user and database
         run: |
-          ssudo mysql -u root -e "SELECT user,host,plugin FROM mysql.user;"
+          sudo mysql -u root -e "SELECT user,host,plugin FROM mysql.user;"
           ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'rootpassword';
           CREATE USER 'testuser'@'localhost' IDENTIFIED BY 'testpassword';
           CREATE DATABASE testdb;
