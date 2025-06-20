@@ -42,69 +42,16 @@ jobs:
           sudo systemctl start mysql
           sudo systemctl enable mysql
 
-      - name: Find MySQL temporary password
-        run: |
-          echo "Checking MySQL error log for temporary password..."
-
-          # Common locations for MySQL error log on Ubuntu
-          if [ -f /var/log/mysql/error.log ]; then
-            echo "Found error log at /var/log/mysql/error.log"
-            sudo cat /var/log/mysql/error.log
-          elif [ -f /var/log/mysqld.log ]; then
-            echo "Found error log at /var/log/mysqld.log"
-            sudo cat /var/log/mysqld.log
-          elif [ -f /var/lib/mysql/$(hostname).err ]; then
-            echo "Found error log at /var/lib/mysql/$(hostname).err"
-            sudo cat /var/lib/mysql/$(hostname).err
-          else
-            echo "Searching for MySQL error logs..."
-            sudo find /var -name "*.err" -o -name "*mysql*.log" 2>/dev/null | head -10
-            
-            echo "Checking MySQL configuration for log location..."
-            sudo mysql --help --verbose | grep -A 1 "log-error"
-            
-            echo "Checking systemd journal for MySQL messages..."
-            sudo journalctl -u mysql --no-pager | tail -20
-          fi
-
-          echo "Looking specifically for 'temporary password' or 'generated' in logs..."
-          sudo grep -r "temporary password\|generated.*password" /var/log/ 2>/dev/null || echo "No temporary password found in logs"
-
       - name: Setup MySQL user and database
         run: |
-          # Try to extract the temporary password
-          TEMP_PASS=""
-          if sudo grep -q "temporary password" /var/log/mysql/error.log 2>/dev/null; then
-            TEMP_PASS=$(sudo grep "temporary password" /var/log/mysql/error.log | tail -1 | awk '{print $NF}')
-            echo "Found temporary password: $TEMP_PASS"
-          elif sudo grep -q "generated.*password" /var/log/mysql/error.log 2>/dev/null; then
-            TEMP_PASS=$(sudo grep "generated.*password" /var/log/mysql/error.log | tail -1 | awk '{print $NF}')
-            echo "Found generated password: $TEMP_PASS"
-          fi
-
-          if [ -n "$TEMP_PASS" ]; then
-            echo "Using temporary password to set up MySQL"
-            mysql -u root -p"$TEMP_PASS" --connect-expired-password << 'EOF'
-            ALTER USER 'root'@'localhost' IDENTIFIED BY 'rootpassword';
-            EOF
-            
-            # Now use the new password for the rest
-            mysql -u root -prootpassword << 'EOF'
-            CREATE USER 'testuser'@'localhost' IDENTIFIED BY 'testpassword';
-            CREATE DATABASE testdb;
-            GRANT ALL PRIVILEGES ON testdb.* TO 'testuser'@'localhost';
-            FLUSH PRIVILEGES;
-            EOF
-          else
-            echo "No temporary password found, falling back to sudo method"
-            sudo mysql << 'EOF'
-            ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'rootpassword';
-            CREATE USER 'testuser'@'localhost' IDENTIFIED BY 'testpassword';
-            CREATE DATABASE testdb;
-            GRANT ALL PRIVILEGES ON testdb.* TO 'testuser'@'localhost';
-            FLUSH PRIVILEGES;
-            EOF
-          fi
+          # Use sudo to access MySQL as root (Ubuntu's default auth method)
+          sudo mysql << 'EOF'
+          ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'rootpassword';
+          CREATE USER 'testuser'@'localhost' IDENTIFIED BY 'testpassword';
+          CREATE DATABASE testdb;
+          GRANT ALL PRIVILEGES ON testdb.* TO 'testuser'@'localhost';
+          FLUSH PRIVILEGES;
+          EOF
 
       - name: Create test database schema
         run: |
