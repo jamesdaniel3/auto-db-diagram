@@ -153,69 +153,50 @@ run_visualization() {
     fi
 }
 
-run_headless_mode() {
-    local config_file="$1"
+run_mode() {
+    local mode="$1"
+    local config_file="$2"
 
-    [ ! -f "$config_file" ] && error "Config file '$config_file' does not exist"
+    case "$mode" in
+        "headless")
+            [ -z "$config_file" ] && error "Config file required for headless mode"
+            [ ! -f "$config_file" ] && error "Config file '$config_file' does not exist"
+            
+            echo "Running in headless mode with config: $config_file"
+            
+            check_tool jq
+            parse_config "$config_file"
+            validate_config
+            ;;
+        "interactive")
+            get_database_config
+            ;;
+        *)
+            error "Invalid mode: $mode. Use 'headless' or 'interactive'"
+            ;;
+    esac
 
-    echo "Running in headless mode with config: $config_file"
-    
-    # check required tools
-    check_tool jq
     check_tool dot  # for Graphviz
 
-    parse_config "$config_file"
-    validate_config
-
-    # load DB-specific handlers
+    # load DB-specific handlers and run extraction
     case "$DATABASE_TYPE" in
         postgres)
             check_tool psql
             source "$SCRIPT_DIR/lib/database/postgres.sh"
             if ! run_postgres_extraction; then
                 error "Failed to extract PostgreSQL schema"
+            fi
+            ;;
+        mysql)
+            check_tool mysql
+            source "$SCRIPT_DIR/lib/database/mysql.sh"
+            if ! run_mysql_extraction; then
+                error "Failed to extract MySQL schema"
             fi
             ;;
         sqlite)
             source "$SCRIPT_DIR/lib/database/sqlite.sh"
             if ! run_sqlite_extraction; then 
-                error "Failed to extract SQLite scheam;"
-            fi
-            ;;
-        *)
-            error "Unsupported database type: $DATABASE_TYPE"
-            ;;
-    esac
-
-    # Run visualization
-    if ! run_visualization; then
-        error "Failed to generate visualization"
-    fi
-
-    # Generate ERD diagram
-    if ! generate_erd_diagram; then
-        error "Failed to generate ERD diagram"
-    fi
-}
-
-run_interactive_mode() {
-    # check required tools
-    check_tool dot  # for Graphviz
-
-    get_database_config
-
-    # load DB-specific handlers
-    case "$DATABASE_TYPE" in
-        postgres)
-            check_tool psql
-            source "$SCRIPT_DIR/lib/database/postgres.sh"
-            if ! run_postgres_extraction; then
-                error "Failed to extract PostgreSQL schema"
-            fi
-            ;;
-        sqlite)
-            source "$SCRIPT_DIR/lib/database/sqlite.sh"
-            if ! run_sqlite_extraction; then
                 error "Failed to extract SQLite schema"
             fi
             ;;
@@ -223,11 +204,11 @@ run_interactive_mode() {
             error "Unsupported database type: $DATABASE_TYPE"
             ;;
     esac
-    
+
     if ! run_visualization; then
         error "Failed to generate visualization"
     fi
-    
+
     if ! generate_erd_diagram; then
         error "Failed to generate ERD diagram"
     fi
@@ -237,12 +218,12 @@ run_interactive_mode() {
 case $# in 
     0)
         # run in interactive mode 
-        run_interactive_mode
+        run_mode "interactive"
         ;;
     2)
         # confirm headless flag and run headless mode
         if [[ "$1" == "--headless" || "$1" == "-h" ]]; then
-            run_headless_mode "$2"
+            run_mode "headless" "$2"
         else 
             show_usage_error_message
         fi

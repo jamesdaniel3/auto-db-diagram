@@ -1,0 +1,163 @@
+name: macOS MySQL system tests
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: macos-13
+            arch: intel
+
+          - os: macos-14
+            arch: arm64
+
+          - os: macos-15
+            arch: arm64
+    steps:
+      - name: Debug runner specs
+        run: |
+          echo "Runner: ${{ runner.os }} ${{ runner.arch }}"
+          echo "CPU cores: $(sysctl -n hw.ncpu)"
+          echo "Memory: $(sysctl -n hw.memsize)"
+          echo "Processor: $(sysctl -n machdep.cpu.brand_string)"
+          echo "Architecture: $(uname -m)"
+          sw_vers
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install MySQL and dependencies
+        run: |
+          brew update
+          brew install mysql jq graphviz
+
+      - name: Setup MySQL paths and initialize
+        run: |
+          # Get the correct brew prefix (handles both Intel and Apple Silicon)
+          BREW_PREFIX=$(brew --prefix)
+          MYSQL_PREFIX=$(brew --prefix mysql)
+          MYSQL_DATADIR="$BREW_PREFIX/var/mysql"
+
+          echo "Brew prefix: $BREW_PREFIX"
+          echo "MySQL prefix: $MYSQL_PREFIX"
+          echo "MySQL data directory: $MYSQL_DATADIR"
+
+          # Stop if running
+          brew services stop mysql || true
+          mysql.server stop || true
+
+          # Remove existing data directory
+          rm -rf "$MYSQL_DATADIR"
+
+          # Create the data directory
+          mkdir -p "$MYSQL_DATADIR"
+
+          # Initialize MySQL with no root password
+          "$MYSQL_PREFIX/bin/mysqld" --initialize-insecure --basedir="$MYSQL_PREFIX" --datadir="$MYSQL_DATADIR" --user="$USER"
+
+      - name: Start MySQL service
+        run: |
+          # Start MySQL server
+          brew services start mysql
+
+          # Alternative method if brew services doesn't work
+          # mysql.server start
+
+          # Wait for MySQL to start
+          sleep 15
+
+          # Check if MySQL is running
+          if ! mysqladmin ping -h localhost --silent; then
+            echo "MySQL is not responding, trying alternative start method..."
+            brew services stop mysql || true
+            mysql.server start
+            sleep 10
+          fi
+
+          # Verify MySQL is running
+          mysqladmin ping -h localhost
+
+      - name: Setup MySQL user and database
+        run: |
+          mysql -u root << 'EOF'
+          CREATE USER 'testuser'@'localhost' IDENTIFIED BY 'testpassword';
+          CREATE DATABASE testdb;
+          GRANT ALL PRIVILEGES ON testdb.* TO 'testuser'@'localhost';
+          FLUSH PRIVILEGES;
+          EOF
+
+      - name: Create test database schema
+        run: |
+          mysql -h localhost -u testuser -ptestpassword testdb << 'EOF'
+          CREATE TABLE users (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            username VARCHAR(50) NOT NULL UNIQUE,
+            email VARCHAR(100) NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
+
+          CREATE TABLE posts (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            title VARCHAR(200) NOT NULL,
+            content TEXT,
+            published BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+          );
+
+          INSERT INTO users (username, email) VALUES 
+            ('john_doe', 'john@example.com'),
+            ('jane_smith', 'jane@example.com');
+
+          INSERT INTO posts (user_id, title, content, published) VALUES 
+            (1, 'First Post', 'This is the first post content', TRUE),
+            (1, 'Second Post', 'This is the second post content', FALSE),
+            (2, 'Jane''s Post', 'Content from Jane', TRUE);
+          EOF
+
+      - name: Create credentials file
+        run: |
+          cat > credentials.json << 'EOF'
+          {
+            "DATABASE_TYPE": "mysql",
+            "CONNECTION_INFO": {
+              "HOST": "localhost",
+              "PORT": 3306,
+              "USERNAME": "testuser",
+              "DATABASE_NAME": "testdb",
+              "PASSWORD": "testpassword"
+            }
+          }
+          EOF
+
+      - name: Run script with database credentials
+        run: |
+          chmod +x main.sh
+          ./main.sh --headless credentials.json
+
+      - name: Verify PNG file was generated
+        run: |
+          if ls *.png 1> /dev/null 2>&1; then
+            echo "PNG file(s) found in current directory:"
+            ls -la *.png
+          elif find . -name "*.png" -type f | head -1; then
+            echo "PNG file(s) found:"
+            find . -name "*.png" -type f -exec ls -la {} \;
+          else
+            echo "No PNG files found!"
+            echo "Current directory contents:"
+            ls -la
+            exit 1
+          fi
+
+      - name: Stop MySQL (cleanup)
+        if: always()
+        run: |
+          brew services stop mysql || true
+          mysql.server stop || true
