@@ -51,8 +51,9 @@ jobs:
       - name: Setup MySQL user and database
         run: |
           sudo mysql << 'EOF'
-          CREATE USER IF NOT EXISTS 'testuser'@'localhost' IDENTIFIED BY 'testpassword';
-          CREATE DATABASE IF NOT EXISTS testdb;
+          ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'rootpassword';
+          CREATE USER 'testuser'@'localhost' IDENTIFIED BY 'testpassword';
+          CREATE DATABASE testdb;
           GRANT ALL PRIVILEGES ON testdb.* TO 'testuser'@'localhost';
           FLUSH PRIVILEGES;
           EOF
