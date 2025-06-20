@@ -36,20 +36,51 @@ jobs:
           brew update
           brew install mysql jq graphviz
 
-      - name: Start MySQL (insecure root access)
+      - name: Setup MySQL paths and initialize
         run: |
+          # Get the correct brew prefix (handles both Intel and Apple Silicon)
+          BREW_PREFIX=$(brew --prefix)
+          MYSQL_PREFIX=$(brew --prefix mysql)
+          MYSQL_DATADIR="$BREW_PREFIX/var/mysql"
+
+          echo "Brew prefix: $BREW_PREFIX"
+          echo "MySQL prefix: $MYSQL_PREFIX"
+          echo "MySQL data directory: $MYSQL_DATADIR"
+
           # Stop if running
+          brew services stop mysql || true
           mysql.server stop || true
 
-          # Reinitialize with no password
-          rm -rf /opt/homebrew/var/mysql
-          mysqld --initialize-insecure --basedir=$(brew --prefix mysql) --datadir=/opt/homebrew/var/mysql --user=$USER
+          # Remove existing data directory
+          rm -rf "$MYSQL_DATADIR"
 
-          # Start the server
-          mysql.server start
+          # Create the data directory
+          mkdir -p "$MYSQL_DATADIR"
 
-          # Wait a bit
-          sleep 10
+          # Initialize MySQL with no root password
+          "$MYSQL_PREFIX/bin/mysqld" --initialize-insecure --basedir="$MYSQL_PREFIX" --datadir="$MYSQL_DATADIR" --user="$USER"
+
+      - name: Start MySQL service
+        run: |
+          # Start MySQL server
+          brew services start mysql
+
+          # Alternative method if brew services doesn't work
+          # mysql.server start
+
+          # Wait for MySQL to start
+          sleep 15
+
+          # Check if MySQL is running
+          if ! mysqladmin ping -h localhost --silent; then
+            echo "MySQL is not responding, trying alternative start method..."
+            brew services stop mysql || true
+            mysql.server start
+            sleep 10
+          fi
+
+          # Verify MySQL is running
+          mysqladmin ping -h localhost
 
       - name: Setup MySQL user and database
         run: |
@@ -128,4 +159,5 @@ jobs:
       - name: Stop MySQL (cleanup)
         if: always()
         run: |
+          brew services stop mysql || true
           mysql.server stop || true
