@@ -1,8 +1,8 @@
 name: macOS MySQL system tests
 
 on:
-  pull_request:
-    branches: [main]
+  # pull_request:
+  #   branches: [main]
 
 jobs:
   test:
@@ -13,11 +13,11 @@ jobs:
           - os: macos-13
             arch: intel
 
-          # - os: macos-14
-          #   arch: arm64
+          - os: macos-14
+            arch: arm64
 
-          # - os: macos-15
-          #   arch: arm64
+          - os: macos-15
+            arch: arm64
     steps:
       - name: Debug runner specs
         run: |

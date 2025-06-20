@@ -1,7 +1,7 @@
 name: Ubuntu MySQL system tests
 on:
-  # pull_request:
-  #   branches: [main]
+  pull_request:
+    branches: [main]
 jobs:
   test:
     runs-on: ${{ matrix.os }}
@@ -15,6 +15,12 @@ jobs:
           - os: ubuntu-22.04
             mysql_version: "8.0"
             arch: x64
+
+    env:
+      DB_DATABASE: testdb
+      DB_USER: root
+      DB_PASSWORD: root
+
     steps:
       - name: Debug runner specs
         run: |
@@ -29,34 +35,31 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Update package lists
+      - name: Install additional dependencies
         run: |
           sudo apt-get update
+          sudo apt-get install -y jq graphviz
 
-      - name: Install dependencies
+      - name: Set up MySQL
         run: |
-          sudo apt-get install -y jq graphviz mysql-server mysql-client
+          # Start MySQL service using init.d (as suggested in the article)
+          sudo /etc/init.d/mysql start
 
-      - name: Start MySQL service
-        run: |
-          sudo systemctl start mysql
-          sudo systemctl enable mysql
+          # Wait a moment for MySQL to start
+          sleep 5
 
-      - name: Setup MySQL user and database
-        run: |
-          # Use sudo to access MySQL as root (Ubuntu's default auth method)
-          sudo mysql << 'EOF'
-          ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'rootpassword';
-          CREATE USER 'testuser'@'localhost' IDENTIFIED BY 'testpassword';
-          CREATE DATABASE testdb;
-          GRANT ALL PRIVILEGES ON testdb.* TO 'testuser'@'localhost';
-          FLUSH PRIVILEGES;
-          EOF
+          # Test connection and create database
+          mysql -e 'CREATE DATABASE ${{ env.DB_DATABASE }};' -u${{ env.DB_USER }} -p${{ env.DB_PASSWORD }}
+
+          # Create test user
+          mysql -e "CREATE USER 'testuser'@'localhost' IDENTIFIED BY 'testpassword';" -u${{ env.DB_USER }} -p${{ env.DB_PASSWORD }}
+          mysql -e "GRANT ALL PRIVILEGES ON ${{ env.DB_DATABASE }}.* TO 'testuser'@'localhost';" -u${{ env.DB_USER }} -p${{ env.DB_PASSWORD }}
+          mysql -e "FLUSH PRIVILEGES;" -u${{ env.DB_USER }} -p${{ env.DB_PASSWORD }}
 
       - name: Create test database schema
         run: |
           # Create tables with foreign key relationship
-          mysql -h localhost -u testuser -ptestpassword testdb << 'EOF'
+          mysql -h localhost -u testuser -ptestpassword ${{ env.DB_DATABASE }} << 'EOF'
           -- Create users table (parent)
           CREATE TABLE users (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -124,18 +127,7 @@ jobs:
             exit 1
           fi
 
-      # removed to avoid paying for storage
-      # - name: Upload generated diagram as artifact
-      #   uses: actions/upload-artifact@v4
-      #   if: always()
-      #   with:
-      #     name: db-diagram-mysql-${{ matrix.os }}-${{ matrix.mysql_version }}
-      #     path: |
-      #       *.png
-      #       **/*.png
-      #     if-no-files-found: warn
-
       - name: Stop MySQL (cleanup)
         if: always()
         run: |
-          sudo systemctl stop mysql || true
+          sudo /etc/init.d/mysql stop || true
