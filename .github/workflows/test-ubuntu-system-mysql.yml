@@ -50,8 +50,13 @@ jobs:
 
       - name: Setup MySQL user and database
         run: |
-          sudo mysql -u root -e "SELECT user,host,plugin FROM mysql.user;"
+          # Access MySQL using socket-based auth
+          sudo mysql << 'EOF'
+          -- Set root to use native password login
           ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'rootpassword';
+          FLUSH PRIVILEGES;
+
+          -- Now create a new user and database
           CREATE USER 'testuser'@'localhost' IDENTIFIED BY 'testpassword';
           CREATE DATABASE testdb;
           GRANT ALL PRIVILEGES ON testdb.* TO 'testuser'@'localhost';
