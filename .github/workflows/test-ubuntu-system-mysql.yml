@@ -50,13 +50,22 @@ jobs:
 
       - name: Setup MySQL user and database
         run: |
-          # Access MySQL using socket-based auth
-          sudo mysql << 'EOF'
-          -- Set root to use native password login
+          # Check if there's a temporary password in the log
+          if sudo grep 'temporary password' /var/log/mysql/error.log; then
+            TEMP_PASS=$(sudo grep 'temporary password' /var/log/mysql/error.log | tail -1 | awk '{print $NF}')
+            echo "Found temporary password"
+            mysql -u root -p"$TEMP_PASS" --connect-expired-password << 'EOF'
+          ALTER USER 'root'@'localhost' IDENTIFIED BY 'rootpassword';
+          EOF
+          else
+            # Fallback to sudo method
+            sudo mysql << 'EOF'
           ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'rootpassword';
-          FLUSH PRIVILEGES;
+          EOF
+          fi
 
-          -- Now create a new user and database
+          # Now create user and database with the known password
+          mysql -u root -prootpassword << 'EOF'
           CREATE USER 'testuser'@'localhost' IDENTIFIED BY 'testpassword';
           CREATE DATABASE testdb;
           GRANT ALL PRIVILEGES ON testdb.* TO 'testuser'@'localhost';
