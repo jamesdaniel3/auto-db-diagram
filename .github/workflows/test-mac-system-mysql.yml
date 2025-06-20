@@ -1,52 +1,59 @@
-name: Ubuntu MySQL system tests
+name: macOS MySQL system tests
+
 on:
-  # pull_request:
-  #   branches: [main]
+  pull_request:
+    branches: [main]
+
 jobs:
   test:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         include:
-          - os: ubuntu-24.04
-            mysql_version: "8.0"
-            arch: x64
+          - os: macos-13
+            arch: intel
 
-          - os: ubuntu-22.04
-            mysql_version: "8.0"
-            arch: x64
+          # - os: macos-14
+          #   arch: arm64
+
+          # - os: macos-15
+          #   arch: arm64
     steps:
       - name: Debug runner specs
         run: |
           echo "Runner: ${{ runner.os }} ${{ runner.arch }}"
-          echo "Matrix OS: ${{ matrix.os }}"
-          echo "CPU cores: $(nproc)"
-          echo "Memory: $(free -h | grep '^Mem:' | awk '{print $2}')"
-          echo "Processor: $(cat /proc/cpuinfo | grep 'model name' | head -1 | cut -d: -f2 | xargs)"
+          echo "CPU cores: $(sysctl -n hw.ncpu)"
+          echo "Memory: $(sysctl -n hw.memsize)"
+          echo "Processor: $(sysctl -n machdep.cpu.brand_string)"
           echo "Architecture: $(uname -m)"
-          echo "Ubuntu version: $(lsb_release -d | cut -f2)"
+          sw_vers
 
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Update package lists
+      - name: Install MySQL and dependencies
         run: |
-          sudo apt-get update
+          brew update
+          brew install mysql jq graphviz
 
-      - name: Install dependencies
+      - name: Start MySQL (insecure root access)
         run: |
-          sudo apt-get install -y jq graphviz mysql-server mysql-client
+          # Stop if running
+          mysql.server stop || true
 
-      - name: Start MySQL service
-        run: |
-          sudo systemctl start mysql
-          sudo systemctl enable mysql
+          # Reinitialize with no password
+          rm -rf /opt/homebrew/var/mysql
+          mysqld --initialize-insecure --basedir=$(brew --prefix mysql) --datadir=/opt/homebrew/var/mysql --user=$USER
+
+          # Start the server
+          mysql.server start
+
+          # Wait a bit
+          sleep 10
 
       - name: Setup MySQL user and database
         run: |
-          # Use sudo to access MySQL as root (Ubuntu's default auth method)
-          sudo mysql << 'EOF'
-          ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'rootpassword';
+          mysql -u root << 'EOF'
           CREATE USER 'testuser'@'localhost' IDENTIFIED BY 'testpassword';
           CREATE DATABASE testdb;
           GRANT ALL PRIVILEGES ON testdb.* TO 'testuser'@'localhost';
@@ -55,9 +62,7 @@ jobs:
 
       - name: Create test database schema
         run: |
-          # Create tables with foreign key relationship
           mysql -h localhost -u testuser -ptestpassword testdb << 'EOF'
-          -- Create users table (parent)
           CREATE TABLE users (
             id INT AUTO_INCREMENT PRIMARY KEY,
             username VARCHAR(50) NOT NULL UNIQUE,
@@ -65,7 +70,6 @@ jobs:
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
           );
 
-          -- Create posts table (child with foreign key)
           CREATE TABLE posts (
             id INT AUTO_INCREMENT PRIMARY KEY,
             user_id INT NOT NULL,
@@ -76,7 +80,6 @@ jobs:
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
           );
 
-          -- Insert some sample data
           INSERT INTO users (username, email) VALUES 
             ('john_doe', 'john@example.com'),
             ('jane_smith', 'jane@example.com');
@@ -104,13 +107,11 @@ jobs:
 
       - name: Run script with database credentials
         run: |
-          echo "Running on Ubuntu ${{ matrix.os }} (${{ runner.arch }})"
           chmod +x main.sh
           ./main.sh --headless credentials.json
 
       - name: Verify PNG file was generated
         run: |
-          # Look for PNG files in common output locations
           if ls *.png 1> /dev/null 2>&1; then
             echo "PNG file(s) found in current directory:"
             ls -la *.png
@@ -124,18 +125,7 @@ jobs:
             exit 1
           fi
 
-      # removed to avoid paying for storage
-      # - name: Upload generated diagram as artifact
-      #   uses: actions/upload-artifact@v4
-      #   if: always()
-      #   with:
-      #     name: db-diagram-mysql-${{ matrix.os }}-${{ matrix.mysql_version }}
-      #     path: |
-      #       *.png
-      #       **/*.png
-      #     if-no-files-found: warn
-
       - name: Stop MySQL (cleanup)
         if: always()
         run: |
-          sudo systemctl stop mysql || true
+          mysql.server stop || true
