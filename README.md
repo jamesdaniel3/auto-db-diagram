@@ -24,8 +24,22 @@ db-diagram  -h /Users/jamesdaniel/automatic-db-digrammer/config.json
 The structure of valid config files varies based on the type of database you want to connect to, but examples can be found under `/configs_examples/valid_configs`. In addition to examples, here is a slightly more formal explanation of the permitted fields in the config file, depending on the database you are trying to connect to.
 
 ```TypeScript
-postgresConfig {
+postgreSQLConfig {
   database_type: "postgres"
+  connection_info: {
+    host: string;
+    port: number;
+    username: string;
+    database_name: string;
+    password?: string;
+  };
+  excluded_tables?: string[];
+}
+```
+
+```TypeScript
+mySQLConfig {
+  database_type: "mysql"
   connection_info: {
     host: string;
     port: number;
@@ -57,11 +71,14 @@ Alternatively, the program can be run in interactive mode, where it will walk yo
 db-diagram
 ```
 
-This tool currently supports connections to local postgreSQL instances and SQLite instances.
+This tool currently supports connections to the following:
+
+- postgreSQL instances
+- SQLite instances
+- MySQL instances
 
 ## Planned Features
 
-- MySQL connections
 - SQL Server Connections
 - Hosted DB Connections
 
