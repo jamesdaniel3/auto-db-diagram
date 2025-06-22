@@ -9,6 +9,7 @@ This tool was built to solve the pains of maintaining database diagrams on softw
 To install on Mac or Linux:
 
 ```bash
+brew tap jamesdaniel3/auto-db-diagram
 brew install db-diagram
 ```
 
