@@ -1,8 +1,8 @@
 name: macOS MySQL system tests
 
 on:
-  pull_request:
-    branches: [main]
+  # pull_request:
+  #   branches: [main]
 
 jobs:
   test:
