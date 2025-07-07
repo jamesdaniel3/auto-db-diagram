@@ -40,6 +40,9 @@ jobs:
             # Intel Mac path
             echo "/usr/local/bin" >> $GITHUB_PATH
           fi
+      
+      - name: Set TERM environment variable
+        run: export TERM=xterm
 
       - name: Start local MongoDB (for local test)
         run: |
