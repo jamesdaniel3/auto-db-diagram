@@ -2,7 +2,6 @@
 
 error() {
     echo "Error: $1" >&2
-    rm -f "$OUTPUT_FILE"
     exit 1
 }
 

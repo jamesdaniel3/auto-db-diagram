@@ -28,6 +28,15 @@ validate_config() {
                 error "Missing or invalid 'database_location' field in connection_info"
             fi
             ;;
+        mongodb)
+            if [ -z "$HOST" ] || [ "$HOST" = "null" ]; then
+                error "Missing or invalid 'host' field in connection_info"
+            fi
+            
+            if [ -z "$PORT" ] || [ "$PORT" = "null" ]; then
+                error "Missing or invalid 'port' field in connection_info"
+            fi
+            ;;
         *)
             error "Configuration for database type '$DATABASE_TYPE' is not currently supported"
             exit 1
