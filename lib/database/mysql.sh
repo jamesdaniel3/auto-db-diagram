@@ -18,7 +18,7 @@ run_mysql_extraction() {
     QUERY=$(<"$QUERY_FILE")
     QUERY="${QUERY//--EXCLUSION_PLACEHOLDER--/$EXCLUSION_CONDITION}"
     
-    echo "Connecting to $DATABASE_TYPE at $HOST:$PORT..."
+    echo "Connecting to MySQL at $HOST:$PORT..."
     
     # try connection using mysql command with options
     if mysql -h "$HOST" -P "$PORT" -u "$USERNAME" -p"$PASSWORD" -D "$DATABASE_NAME" -e "$QUERY" --batch --raw --skip-column-names > "$OUTPUT_FILE" 2>/dev/null; then

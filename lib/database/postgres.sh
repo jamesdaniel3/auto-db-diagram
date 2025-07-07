@@ -18,7 +18,7 @@ run_postgres_extraction() {
     QUERY=$(<"$QUERY_FILE")
     QUERY="${QUERY//--EXCLUSION_PLACEHOLDER--/$EXCLUSION_CONDITION}"
     
-    echo "Connecting to $DATABASE_TYPE at $HOST:$PORT..."
+    echo "Connecting to PostgreSQL at $HOST:$PORT..."
 
     CONNECTION_STRING="postgresql://$USERNAME:$PASSWORD@$HOST:$PORT/$DATABASE_NAME"
     

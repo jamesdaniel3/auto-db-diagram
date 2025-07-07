@@ -1,4 +1,4 @@
-name: Ubuntu postgres system tests
+name: Ubuntu PostgreSQL System Tests
 on:
   pull_request:
     branches: [main]

@@ -1,4 +1,4 @@
-name: macOS SQLite system tests
+name: MacOS SQLite System Tests
 on:
   pull_request:
     branches: [main]

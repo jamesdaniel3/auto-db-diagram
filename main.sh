@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -eo pipefail
 
 # get the absolute path to the directory where main.sh resides
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -10,17 +10,25 @@ source "$SCRIPT_DIR/lib/error_handling.sh"
 source "$SCRIPT_DIR/lib/tools_check.sh"
 source "$SCRIPT_DIR/lib/config_parser.sh"
 source "$SCRIPT_DIR/lib/validate_config.sh"
-source "$SCRIPT_DIR/lib/interactive_mode.sh"
+source "$SCRIPT_DIR/lib/interactive_mode_controller.sh"
 
 cleanup() {
     tput cnorm  # restore cursor in the event that the user quits while cursor is hidden
-    exit 0
+    rm -f "$OUTPUT_FILE"
+    rm -rf "$SCRIPT_DIR/mongo_collections"
+    exit 1
+}
+
+on_exit() {
+    local exit_code=$?
+    if [[ $exit_code -ne 0 ]]; then
+        cleanup
+    fi
 }
 
 # exit scenarios
-trap cleanup INT       # ctrl+C
-trap cleanup TERM      # termination signal
-trap cleanup QUIT      # quit signal
+trap cleanup INT TERM QUIT ERR 
+trap on_exit EXIT
 
 show_usage_error_message() {
     echo "Invalid usage of db-diagram, run db-diagram --help for more info or man db-diagram for a full manpage "
@@ -142,9 +150,10 @@ run_visualization() {
             fi
         fi
         
-        # clean up the JSON output file if visualization successful
+        # clean up the JSON output files
         if [ -f "$OUTPUT_FILE" ]; then
             rm "$OUTPUT_FILE"
+            rm -rf "$SCRIPT_DIR/mongo_collections"
         fi
     else
         echo "Note: visualize.py not found. Output saved to '$OUTPUT_FILE'"
@@ -198,6 +207,21 @@ run_mode() {
             source "$SCRIPT_DIR/lib/database/sqlite.sh"
             if ! run_sqlite_extraction; then 
                 error "Failed to extract SQLite schema"
+            fi
+            ;;
+        mongodb)
+            mongoexport_error_message=$(cat << 'EOF'
+This tool relies on `mongoexport`, which is not part of Homebrew core.
+To install it, run:
+brew tap mongodb/brew
+brew install mongodb-database-tools
+EOF
+)
+            check_tool mongoexport "$mongoexport_error_message"
+            check_tool mongosh
+            source "$SCRIPT_DIR/lib/database/mongo.sh"
+            if ! run_mongo_extraction; then 
+                error "Failed to extract MongoDB schema"
             fi
             ;;
         *)

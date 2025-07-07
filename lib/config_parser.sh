@@ -7,21 +7,18 @@ parse_config() {
         error "'$CONFIG_FILE' is not valid JSON"
     fi
 
-    # Parse database_type (case-insensitive)
     DATABASE_TYPE=$(jq -r '
         to_entries | 
         map(select(.key | ascii_downcase == "database_type")) | 
         .[0].value // empty
     ' "$CONFIG_FILE")
 
-    # Extract connection_info object (case-insensitive)
     CONNECTION_INFO=$(jq -r '
         to_entries |
         map(select(.key | ascii_downcase == "connection_info")) |
         .[0].value
     ' "$CONFIG_FILE")
 
-    # Parse fields from connection_info (case-insensitive)
     HOST=$(jq -r '
         to_entries |
         map(select(.key | ascii_downcase == "host")) |
@@ -58,6 +55,41 @@ parse_config() {
         .[0].value // empty
     ' <<< "$CONNECTION_INFO")
 
+    USER_CONNECTION_STRING=$(jq -r '
+        to_entries |
+        map(select(.key | ascii_downcase == "connection_string")) |
+        .[0].value // empty
+    ' <<< "$CONNECTION_INFO")
+
+    SSL_ENABLED=$(jq -r '
+        to_entries |
+        map(select(.key | ascii_downcase == "ssl_enabled")) |
+        .[0].value // empty
+    ' <<< "$CONNECTION_INFO")
+
+    SSL_ALLOW_INVALID_CERTS=$(jq -r '
+        to_entries |
+        map(select(.key | ascii_downcase == "ssl_allow_invalid_certs")) |
+        .[0].value // "false"
+    ' <<< "$CONNECTION_INFO")
+
+    CONNECT_WITH_SERVICE_RECORD=$(jq -r '
+        to_entries |
+        map(select(.key | ascii_downcase == "connect_with_service_record")) |
+        .[0].value // "false"
+    ' <<< "$CONNECTION_INFO")
+
+    SSL_CA_FILE_PATH=$(jq -r '
+        to_entries |
+        map(select(.key | ascii_downcase == "ssl_ca_file_path")) |
+        .[0].value // empty
+    ' <<< "$CONNECTION_INFO")
+
+    SSL_CLIENT_CERT_PATH=$(jq -r '
+        to_entries |
+        map(select(.key | ascii_downcase == "ssl_client_cert_path")) |
+        .[0].value // empty
+    ' <<< "$CONNECTION_INFO")
 
     EXCLUDED_TABLES=()
     while IFS= read -r table; do
@@ -68,10 +100,15 @@ parse_config() {
         .[0].value[]? // empty
     ' "$CONFIG_FILE")
 
-    # Parse output file (optional, case-insensitive)
     OUTPUT_FILE=$(jq -r '
         to_entries | 
         map(select(.key | ascii_downcase == "output_file")) | 
         .[0].value // "database_schema.json"
+    ' "$CONFIG_FILE")
+
+    EXHAUSTIVE_SEARCH=$(jq -r '
+        to_entries | 
+        map(select(.key | ascii_downcase == "exhaustive_search")) | 
+        .[0].value // "false"
     ' "$CONFIG_FILE")
 }

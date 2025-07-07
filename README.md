@@ -6,7 +6,8 @@ This tool was built to solve the pains of maintaining database diagrams on softw
 
 ## Installation
 
-To install on Mac or Linux:
+To install on Mac:
+To install on Mac:
 
 ```bash
 brew tap jamesdaniel3/auto-db-diagram
@@ -59,6 +60,27 @@ SQLiteConfig {
     database_location: string;
   };
   excluded_tables?: string[];
+}
+```
+
+```TypeScript
+MongoDBConfig {
+  database_type: "mongodb"
+  connection_info: {
+    connection_string?: string,
+    host?: string;
+    port?: number;
+    database_name: string;
+    username?: string;
+    password?: string;
+    ssl_enabled?: boolean,
+    ssl_allow_invalid_certs?: boolean,  
+    ssl_ca_file_path?: string,  // path to ca pem file
+    ssl_client_cert_path?: string,  // path to client pem file
+    connect_with_service_record?: boolean
+  };
+  excluded_tables?: string[];
+  exhaustive_search?: boolean; // check all documents in each collection rather than a maximum of the most recent 100
 }
 ```
 

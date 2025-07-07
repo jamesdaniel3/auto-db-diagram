@@ -1,0 +1,338 @@
+name: MacOS MongoDB System Tests
+on:
+  pull_request:
+    branches: [main]
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: macos-13
+            arch: intel
+
+          - os: macos-14
+            arch: arm64
+
+          - os: macos-15
+            arch: arm64
+    steps:
+      - name: Debug runner specs
+        run: |
+          echo "Runner: ${{ runner.os }} ${{ runner.arch }}"
+          echo "Matrix OS: ${{ matrix.os }}"
+          echo "CPU cores: $(sysctl -n hw.ncpu)"
+          echo "Memory: $(sysctl -n hw.memsize | awk '{print $1/1024/1024/1024 " GB"}')"
+          echo "Processor: $(sysctl -n machdep.cpu.brand_string)"
+          echo "Architecture: $(uname -m)"
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          brew install jq graphviz mongodb/brew/mongodb-community-shell
+          # Add mongosh to PATH
+          if [[ -d "/opt/homebrew/bin" ]]; then
+            # Apple Silicon path
+            echo "/opt/homebrew/bin" >> $GITHUB_PATH
+          elif [[ -d "/usr/local/bin" ]]; then
+            # Intel Mac path
+            echo "/usr/local/bin" >> $GITHUB_PATH
+          fi
+
+      - name: Start local MongoDB (for local test)
+        run: |
+          # Install MongoDB Community Edition with version compatibility check
+          if [[ "${{ matrix.os }}" == "macos-13" ]]; then
+            # macOS 13 needs an older MongoDB version
+            echo "Installing MongoDB 7.0 for macOS 13 compatibility"
+            brew install mongodb/brew/mongodb-community@7.0
+            MONGODB_SERVICE="mongodb-community@7.0"
+          else
+            # macOS 14+ can use latest version
+            echo "Installing latest MongoDB for macOS 14+"
+            brew install mongodb/brew/mongodb-community
+            MONGODB_SERVICE="mongodb-community"
+          fi
+          
+          # Create data directory with architecture-specific paths
+          if [[ -d "/opt/homebrew" ]]; then
+            # Apple Silicon path
+            DATA_DIR="/opt/homebrew/var/mongodb"
+            LOG_DIR="/opt/homebrew/var/log/mongodb"
+          else
+            # Intel Mac path
+            DATA_DIR="/usr/local/var/mongodb"
+            LOG_DIR="/usr/local/var/log/mongodb"
+          fi
+          
+          sudo mkdir -p "$DATA_DIR" "$LOG_DIR"
+          sudo chown $(whoami) "$DATA_DIR" "$LOG_DIR"
+          
+          # Try to start MongoDB as background service first
+          echo "Attempting to start MongoDB service ($MONGODB_SERVICE)..."
+          brew services start mongodb/brew/$MONGODB_SERVICE
+          
+          # Wait and check if service started
+          sleep 15
+          
+          # Check if MongoDB is responding
+          if ! mongosh --eval "db.runCommand('ping')" 2>/dev/null; then
+            echo "Service start failed, trying manual start..."
+            
+            # Kill any existing mongod processes
+            sudo pkill mongod || true
+            sleep 2
+            
+            # Start MongoDB manually
+            mongod --dbpath "$DATA_DIR" --logpath "$LOG_DIR/mongo.log" --fork
+            
+            # Wait for manual start
+            sleep 10
+          fi
+          
+          # Final verification with retry
+          for i in {1..6}; do
+            if mongosh --eval "db.runCommand('ping')" 2>/dev/null; then
+              echo "✅ MongoDB is running"
+              break
+            else
+              echo "Attempt $i: MongoDB not ready, waiting..."
+              sleep 5
+            fi
+            
+            if [ $i -eq 6 ]; then
+              echo "❌ MongoDB failed to start"
+              # Show logs for debugging
+              echo "MongoDB logs:"
+              tail -20 "$LOG_DIR/mongo.log" 2>/dev/null || echo "No logs found"
+              exit 1
+            fi
+          done
+
+      - name: Setup local MongoDB test data
+        run: |
+          # Verify MongoDB is still running before inserting data
+          echo "Verifying MongoDB connection before data setup..."
+          mongosh --eval "db.runCommand('ping')"
+          
+          # Create test database and collections for local testing
+          mongosh testMongoDB --eval "
+            db.test_collection.insertMany([
+              { name: 'Test Document 1', type: 'sample', created: new Date() },
+              { name: 'Test Document 2', type: 'example', created: new Date() }
+            ]);
+            db.users.insertMany([
+              { username: 'testuser1', email: 'test1@example.com' },
+              { username: 'testuser2', email: 'test2@example.com' }
+            ]);
+            print('Local test data created successfully');
+          "
+
+      - name: Create MongoDB X.509 certificate file
+        run: |
+          # Create the certificate file for X.509 authentication
+          cat > mongo-cert.pem << 'EOF'
+          -----BEGIN CERTIFICATE-----
+          MIIFETCCAvmgAwIBAgIIPlBVvvIGgzkwDQYJKoZIhvcNAQELBQAwSTEhMB8GA1UE
+          AxMYNjg2YmRmNGY5NjQ4OTcyYTY2ZGY5NTczMQ4wDAYDVQQLEwVBdGxhczEUMBIG
+          A1UEChMLTW9uZ29EQiBJbmMwHhcNMjUwNzA3MTQxOTU0WhcNMjcwNzA3MTUxOTU0
+          WjAcMRowGAYDVQQDExFtb25nb0RCVXNlci1jZXJ0czCCAiIwDQYJKoZIhvcNAQEB
+          BQADggIPADCCAgoCggIBAOlCU1ojfs8MovFd5PG4y2yOhnHryvz+jEzhtxh7j7Hq
+          r71MWHnxCBavQHc51RoQAZwUBILRic7iMQr7u/O5sK/raDGwi/pfX3UcyMwsDBt4
+          4xPZh7b8D6ocCn/qRZ/6W9Ctybnr+0ChgRVDGkgO5BIPmy/3wvqdEXj+FGKmoTkd
+          sp9lPDqg8m+UuWvOHAVGd6clmkNQxzG8WroEDWzy0KAzboDyEbz8RDlnig/hxDUr
+          Mi+WGSl3l4gDYQwzZFuOi5+U7JO4O1NWgSnM6sA22vJyZxP+1ba1/Unn4baHDnsb
+          noGjcKmTNLsxeprIgC35qHto75RWMpKgte9WujlV+qQ6ZLKryKeHBw9ntFr8KM7M
+          gtDV00dHa4i8WcxeiTFYU5jO5qNM7z2J/pBYd8ArDisD6kHNIGOelgchQ4+KwE1p
+          T13lsLye5UWWMQ0VtticWocG47fSdTIJqzeujVFriPolSpnSUKZk1NzxDtDX6y0I
+          5fkyHeRVlnx4CTi+JkmTN2lEgJVNNM/tQJ1vqckoEACLVlb2rIZJtwGYuebGXR9Z
+          Nc8yBgSg6zqJvD5HrMHSeKGKBp67f3aH8AcFNhxHqiBamTptZQ0mRh3R8MFpcy8w
+          HkSBKXzYKWhg2hKHcoGDTfo+mmJZ0lFea9zQ2iFL+zkNm3adm6g2AvmDtaWZmkc9
+          AgMBAAGjKjAoMA4GA1UdDwEB/wQEAwIHgDAWBgNVHSUBAf8EDDAKBggrBgEFBQcD
+          AjANBgkqhkiG9w0BAQsFAAOCAgEA4PPVJfPuD0dlkD1O0ssHcw0cGBbllmbZGJAa
+          +DtjtaB5hnFkxsNamLpc63tX4MvjY2qP3w0YPMCAK7R4jebW6hotCt9fXjjO9x2j
+          RzDUpY9N81wfVmwTJW2jbS5Ns+/1ZnKgNMXCawW5G9qcx538N6J0M+JWXw9jUY0V
+          b0cw1GUAPSnrr+Bbgs0FvZG/CxgUsYQ5u617zmPXRFbdrY1GfPcp56Or0c7lKwon
+          /czb0AqbKER20REXaq/GsDwTs4ME/v0FpbvF4cqXZ4Sxe7bKGwsMVA+HF4APaVvX
+          KXyfn4gNHgqSVArPhr54cUqa0cqiLuljCA3xsk2sHWH3r5XIe6xKDlJRLass7/0d
+          3ilGfQxNHy6VEwjM6EStv9ivAr2GTGQhkbe7yaxaxDVQ/HtNgiK2DHDM2X/rhc/x
+          HQkJgv0mONjtzZYGE0aeP2P9MhRwSA2E5zoCyre8yLnBCSmAJfsFmilBpGbLVTl7
+          r3tmTCEubvfpdzSpc+DmYYveK/rMiZd/5pJBweK+9TC4LhsOocAW3tS4iZjpJec6
+          ZZ6Yqk2u5DRaM6Rspgsu3FjQCcHGX4NkuKh71vl4dRJoEVyYUztIFFcMf+FsU5CB
+          kOnHA8i2GKZrZIaidjIhBYTUNoO7bElg1qYrAzmC6vsKpjJql5fA5QEVQ63HH2mB
+          /swh7wg=
+          -----END CERTIFICATE-----
+          -----BEGIN PRIVATE KEY-----
+          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
+          DYJWfCq6ojkyfz5P0pBPAojZ1vvsP0DI
+          -----END PRIVATE KEY-----
+          EOF
+          
+          # Set proper permissions
+          chmod 600 mongo-cert.pem
+
+      - name: Create MongoDB credentials files
+        run: |
+          # Config 1: X.509 Certificate Authentication (Atlas)
+          cat > credentials-x509.json << 'EOF'
+          {
+              "database_type": "mongodb",
+              "connection_info": {
+                "connection_string": "mongodb+srv://usernamepass.dbf7uue.mongodb.net/?authSource=%24external&authMechanism=MONGODB-X509&retryWrites=true&w=majority&appName=UsernamePass",
+                "database_name": "sample_weatherdata",
+                "ssl_enabled": true,
+                "ssl_client_cert_path": "mongo-cert.pem"
+              }
+          }
+          EOF
+
+          # Config 2: Local MongoDB (no authentication)
+          cat > credentials-local.json << 'EOF'
+          {
+              "database_type": "mongodb",
+              "connection_info": {
+                "database_name": "testMongoDB",
+                "host": "localhost",
+                "port": 27017
+              }
+          }
+          EOF
+
+          # Config 3: Username/Password Authentication (Atlas)
+          cat > credentials-userpass.json << 'EOF'
+          {
+              "database_type": "mongodb",
+              "connection_info": {
+                "connection_string": "mongodb+srv://mongoDBUser-password:9u5oyTjQiNtEHsTI@usernamepass.dbf7uue.mongodb.net/?retryWrites=true&w=majority&appName=UsernamePass",
+                "database_name": "sample_weatherdata",
+                "username": "mongoDBUser-password",
+                "password": "9u5oyTjQiNtEHsTI"
+              }
+          }
+          EOF
+
+      - name: Test MongoDB connectivity
+        run: |
+          echo "Testing MongoDB connections..."
+          
+          # Test local connection
+          echo "1. Testing local MongoDB connection:"
+          mongosh testMongoDB --eval "db.runCommand('ping')" || echo "❌ Local connection failed"
+          
+          # Test X.509 connection (will likely fail in CI without proper network setup)
+          echo "2. Testing X.509 Atlas connection:"
+          mongosh "mongodb+srv://usernamepass.dbf7uue.mongodb.net/?authSource=%24external&authMechanism=MONGODB-X509&retryWrites=true&w=majority&appName=UsernamePass" \
+            --tlsCertificateKeyFile mongo-cert.pem \
+            --eval "db.getSiblingDB('sample_weatherdata').runCommand('ping')" || echo "❌ X.509 connection failed (expected in CI)"
+          
+          # Test username/password connection (will likely fail in CI without proper network setup)
+          echo "3. Testing username/password Atlas connection:"
+          mongosh "mongodb+srv://mongoDBUser-password:9u5oyTjQiNtEHsTI@usernamepass.dbf7uue.mongodb.net/?retryWrites=true&w=majority&appName=UsernamePass" \
+            --eval "db.getSiblingDB('sample_weatherdata').runCommand('ping')" || echo "❌ Username/password connection failed (expected in CI)"
+
+      - name: Run script with X.509 credentials
+        run: |
+          echo "Testing script with X.509 authentication"
+          chmod +x main.sh
+          ./main.sh --headless credentials-x509.json || echo "❌ X.509 test failed (expected in CI)"
+
+      - name: Run script with local MongoDB credentials
+        run: |
+          echo "Testing script with local MongoDB"
+          chmod +x main.sh
+          ./main.sh --headless credentials-local.json
+
+      - name: Run script with username/password credentials
+        run: |
+          echo "Testing script with username/password authentication"
+          chmod +x main.sh
+          ./main.sh --headless credentials-userpass.json || echo "❌ Username/password test failed (expected in CI)"
+
+      - name: Verify PNG files were generated
+        run: |
+          echo "Checking for generated PNG files..."
+          
+          if ls *_schema.png 1> /dev/null 2>&1; then
+            echo "✅ Schema PNG file(s) found:"
+            ls -la *_schema.png
+          elif find . -name "*_schema.png" -type f | head -1; then
+            echo "✅ Schema PNG file(s) found:"
+            find . -name "*_schema.png" -type f -exec ls -la {} \;
+          elif ls *.png 1> /dev/null 2>&1; then
+            echo "✅ PNG file(s) found:"
+            ls -la *.png
+          elif find . -name "*.png" -type f | head -1; then
+            echo "✅ PNG file(s) found:"
+            find . -name "*.png" -type f -exec ls -la {} \;
+          else
+            echo "❌ No PNG files found!"
+            echo "Current directory contents:"
+            ls -la
+            exit 1
+          fi
+
+      - name: Stop local MongoDB
+        if: always()
+        run: |
+          # Determine which MongoDB service to stop based on OS
+          if [[ "${{ matrix.os }}" == "macos-13" ]]; then
+            MONGODB_SERVICE="mongodb-community@7.0"
+          else
+            MONGODB_SERVICE="mongodb-community"
+          fi
+          
+          # Stop service first
+          brew services stop mongodb/brew/$MONGODB_SERVICE || true
+          
+          # Kill any remaining mongod processes
+          sudo pkill mongod || true

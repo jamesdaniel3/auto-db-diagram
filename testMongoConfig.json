@@ -1,0 +1,11 @@
+{
+    "database_type": "mongodb",
+    "connection_info": {
+        
+      "host": "localhost",
+      "port": 27017,
+      "database_name": "testMongoDB"
+    },
+    "excluded_tables": ["friends", "nonsense"],
+    "exhaustive_search": true
+  }

@@ -1,4 +1,4 @@
-name: Ubuntu MySQL system tests
+name: Ubuntu MySQL System Tests
 on:
   pull_request:
     branches: [main]
