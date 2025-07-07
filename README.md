@@ -71,12 +71,15 @@ MongoDBConfig {
     database_name: string;
     username?: string;
     password?: string;
+    ssl_enabled?: boolean,
+    ssl_allow_invalid_certs?: boolean,  
+    ssl_ca_file_path?: string,  // path to ca pem file
+    ssl_client_cert_path?: string,  // path to client pem file
+    connect_with_service_record?: boolean
   };
   excluded_tables?: string[];
-  exhaustive_search?: boolean;
+  exhaustive_search?: boolean; // check all documents in each collection rather than a maximum of the most recent 100
 }
-// If a connection string is used, all fields in connection_info are optional aside from database_name
-// For the sake of performance, Auto DB Diagram only evaluates the first 100 documents in each collection. If you would like to disable this, you can set exhaustive search to true (defaults to fals)
 ```
 
 Note: a question mark denotes an optional field, any fields included but not listed will be ignored.
