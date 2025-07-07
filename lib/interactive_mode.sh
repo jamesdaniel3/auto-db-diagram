@@ -6,12 +6,13 @@ get_database_display_name() {
         postgres) echo "PostgreSQL" ;;
         mysql) echo "MySQL" ;;
         sqlite) echo "SQLite" ;;
+        mongodb) echo "MongoDB" ;;
         *) echo "Unknown Database" ;;
     esac
 }
 
 # available database types
-DATABASE_KEYS=("postgres" "sqlite" "mysql")  # add more as needed
+DATABASE_KEYS=("postgres" "sqlite" "mysql" "mongodb")  # add more as needed
 
 show_database_menu() {
     echo "Select the type of database you want to connect to?"
@@ -111,7 +112,6 @@ get_mysql_or_psql_config() {
             ;;
     esac
     
-    tput cnorm
     read -rp "Enter your database host (default: localhost): " HOST
     [ -z "$HOST" ] && HOST="localhost"
 
@@ -154,7 +154,6 @@ get_mysql_or_psql_config() {
 }
 
 get_sqlite_config() {
-    tput cnorm
     while true; do
         read -rp "Enter the file path to your .db file: " DATABASE_LOCATION
         if [ -n "$DATABASE_LOCATION" ]; then
@@ -165,10 +164,43 @@ get_sqlite_config() {
     done
 }
 
+get_mongo_config() {
+
+    read -rp "Enter your database host (default: localhost): " HOST
+    [ -z "$HOST" ] && HOST="localhost"
+
+    while true; do
+        read -rp "Enter your database port (default: 27017): " PORT
+        [ -z "$PORT" ] && PORT="27017"
+
+        if [[ "$PORT" =~ ^[0-9]+$ ]] && [ "$PORT" -ge 1 ] && [ "$PORT" -le 65535 ]; then
+            break
+        else
+            echo "Invalid port number. Please enter a valid port (1-65535)."
+        fi
+    done
+    
+    while true; do
+        read -rp "Enter your database name: " DATABASE_NAME
+        if [ -n "$DATABASE_NAME" ]; then 
+            break
+        else
+            echo "Database name is required."
+        fi
+    done
+
+    read -rp "Enter your username (press Enter if your database does not requie login): " USERNAME
+
+    read -s -rp "Enter your password (press Enter if your database does not requie login): " PASSWORD
+    echo
+    
+}
+
 get_database_config() {
     clear 
     
     show_database_menu
+    tput cnorm
 
     case "$DATABASE_TYPE" in
         postgres)
@@ -179,6 +211,9 @@ get_database_config() {
             ;;
         sqlite)
             get_sqlite_config
+            ;;
+        mongodb)
+            get_mongo_config
             ;;
         *)
             error "Configuration for database type '$DATABASE_TYPE' is not currently supported"
