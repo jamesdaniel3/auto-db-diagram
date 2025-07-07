@@ -37,6 +37,10 @@ validate_config() {
                 return
             fi
 
+            if [ -z "$CONNECT_WITH_SERVICE_RECORD" ] || [ "$CONNECT_WITH_SERVICE_RECORD" = "null" ]; then
+                error "Missing or invalid 'connect_with_service_record' field in connection_info"
+            fi
+
             if [ -z "$HOST" ] || [ "$HOST" = "null" ]; then
                 error "Missing or invalid 'host' field in connection_info"
             fi

@@ -61,6 +61,36 @@ parse_config() {
         .[0].value // empty
     ' <<< "$CONNECTION_INFO")
 
+    SSL_ENABLED=$(jq -r '
+        to_entries |
+        map(select(.key | ascii_downcase == "ssl_enabled")) |
+        .[0].value // empty
+    ' <<< "$CONNECTION_INFO")
+
+    SSL_ALLOW_INVALID_CERTS=$(jq -r '
+        to_entries |
+        map(select(.key | ascii_downcase == "ssl_allow_invalid_certs")) |
+        .[0].value // "false"
+    ' <<< "$CONNECTION_INFO")
+
+    CONNECT_WITH_SERVICE_RECORD=$(jq -r '
+        to_entries |
+        map(select(.key | ascii_downcase == "connect_with_service_record")) |
+        .[0].value // "false"
+    ' <<< "$CONNECTION_INFO")
+
+    SSL_CA_FILE_PATH=$(jq -r '
+        to_entries |
+        map(select(.key | ascii_downcase == "ssl_ca_file_path")) |
+        .[0].value // empty
+    ' <<< "$CONNECTION_INFO")
+
+    SSL_CLIENT_CERT_PATH=$(jq -r '
+        to_entries |
+        map(select(.key | ascii_downcase == "ssl_client_cert_path")) |
+        .[0].value // empty
+    ' <<< "$CONNECTION_INFO")
+
     EXCLUDED_TABLES=()
     while IFS= read -r table; do
         [[ -n "$table" ]] && EXCLUDED_TABLES+=("$table")
