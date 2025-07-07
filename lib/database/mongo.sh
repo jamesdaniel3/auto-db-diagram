@@ -11,13 +11,14 @@ run_mongo_extraction() {
     # this does not handle +srv or auth 
     CONNECTION_STRING="mongodb://$HOST:$PORT"
 
-    # this does not handle excluded tables 
+    EXCLUDE_PATTERN=$(IFS='|'; echo "${EXCLUDED_TABLES[*]}")
+
     COLLECTIONS=$(mongosh "$CONNECTION_STRING" --quiet --eval "
         db = db.getSiblingDB('$DATABASE_NAME');
         db.runCommand('listCollections').cursor.firstBatch.forEach(
             function(collection) {print(collection.name)}
         );
-    ")
+    " | grep -v -E "^($EXCLUDE_PATTERN)$")
 
     # this should have an exhasutive flag that prevents the limit
     while IFS= read -r collection; do
