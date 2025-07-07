@@ -5,16 +5,14 @@ run_mongo_extraction() {
 
     DATA_DIR="$SCRIPT_DIR/mongo_collections"
     mkdir -p "$DATA_DIR"
-
-    # pull the host and the port out of the connection string
-    echo "Connecting to MongoDB at $HOST:$PORT..."
-
     
     if [ -n "$USER_CONNECTION_STRING" ]; then
         CONNECTION_STRING="$USER_CONNECTION_STRING"
+        echo "Connecting to MongoDB at $USER_CONNECTION_STRING..."
     else
         # this does not handle +srv or auth 
         CONNECTION_STRING="mongodb://$HOST:$PORT"
+        echo "Connecting to MongoDB at $HOST:$PORT..."
     fi
 
     EXCLUDE_PATTERN=$(IFS='|'; echo "${EXCLUDED_TABLES[*]}")
