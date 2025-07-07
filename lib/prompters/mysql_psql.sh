@@ -1,11 +1,10 @@
 #!/bin/bash
 get_mysql_or_psql_config() {
-    local db_type="$1"
     local default_port
     local username_label
     local password_label
     
-    case "$db_type" in
+    case "$DATABASE_TYPE" in
         "postgres")
             default_port="5432"
             username_label="database username"
@@ -17,7 +16,7 @@ get_mysql_or_psql_config() {
             password_label="mySQL password"
             ;;
         *)
-            echo "Error: Unsupported database type '$db_type'"
+            echo "Error: Unsupported database type '$DATABASE_TYPE'"
             return 1
             ;;
     esac
@@ -36,7 +35,7 @@ get_mysql_or_psql_config() {
         fi
     done
 
-    if [[ "$db_type" == "mysql" ]]; then
+    if [[ "$DATABASE_TYPE" == "mysql" ]]; then
         read -rp "Enter your $username_label (default: root): " USERNAME
         [ -z "$USERNAME" ] && USERNAME="root"
     else

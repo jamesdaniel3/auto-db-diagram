@@ -6,8 +6,7 @@ set -eo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # load libraries
-source "$SCRIPT_DIR/lib/error_handling.sh"
-source "$SCRIPT_DIR/lib/tools_check.sh"
+source "$SCRIPT_DIR/lib/utils.sh"
 source "$SCRIPT_DIR/lib/config_parser.sh"
 source "$SCRIPT_DIR/lib/validate_config.sh"
 source "$SCRIPT_DIR/lib/interactive_mode_controller.sh"
