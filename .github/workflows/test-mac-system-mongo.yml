@@ -43,8 +43,18 @@ jobs:
 
       - name: Start local MongoDB (for local test)
         run: |
-          # Install MongoDB Community Edition
-          brew install mongodb/brew/mongodb-community
+          # Install MongoDB Community Edition with version compatibility check
+          if [[ "${{ matrix.os }}" == "macos-13" ]]; then
+            # macOS 13 needs an older MongoDB version
+            echo "Installing MongoDB 7.0 for macOS 13 compatibility"
+            brew install mongodb/brew/mongodb-community@7.0
+            MONGODB_SERVICE="mongodb-community@7.0"
+          else
+            # macOS 14+ can use latest version
+            echo "Installing latest MongoDB for macOS 14+"
+            brew install mongodb/brew/mongodb-community
+            MONGODB_SERVICE="mongodb-community"
+          fi
           
           # Create data directory with architecture-specific paths
           if [[ -d "/opt/homebrew" ]]; then
@@ -61,8 +71,8 @@ jobs:
           sudo chown $(whoami) "$DATA_DIR" "$LOG_DIR"
           
           # Try to start MongoDB as background service first
-          echo "Attempting to start MongoDB service..."
-          brew services start mongodb/brew/mongodb-community
+          echo "Attempting to start MongoDB service ($MONGODB_SERVICE)..."
+          brew services start mongodb/brew/$MONGODB_SERVICE
           
           # Wait and check if service started
           sleep 15
@@ -314,8 +324,15 @@ jobs:
       - name: Stop local MongoDB
         if: always()
         run: |
+          # Determine which MongoDB service to stop based on OS
+          if [[ "${{ matrix.os }}" == "macos-13" ]]; then
+            MONGODB_SERVICE="mongodb-community@7.0"
+          else
+            MONGODB_SERVICE="mongodb-community"
+          fi
+          
           # Stop service first
-          brew services stop mongodb/brew/mongodb-community || true
+          brew services stop mongodb/brew/$MONGODB_SERVICE || true
           
           # Kill any remaining mongod processes
           sudo pkill mongod || true
