@@ -40,30 +40,73 @@ jobs:
             # Intel Mac path
             echo "/usr/local/bin" >> $GITHUB_PATH
           fi
-      
-      - name: Set TERM environment variable
-        run: export TERM=xterm
 
       - name: Start local MongoDB (for local test)
         run: |
-          # Install and start MongoDB Community Edition
+          # Install MongoDB Community Edition
           brew install mongodb/brew/mongodb-community
           
-          # Create data directory
-          sudo mkdir -p /opt/homebrew/var/mongodb
-          sudo chown $(whoami) /opt/homebrew/var/mongodb
+          # Create data directory with architecture-specific paths
+          if [[ -d "/opt/homebrew" ]]; then
+            # Apple Silicon path
+            DATA_DIR="/opt/homebrew/var/mongodb"
+            LOG_DIR="/opt/homebrew/var/log/mongodb"
+          else
+            # Intel Mac path
+            DATA_DIR="/usr/local/var/mongodb"
+            LOG_DIR="/usr/local/var/log/mongodb"
+          fi
           
-          # Start MongoDB as background service
+          sudo mkdir -p "$DATA_DIR" "$LOG_DIR"
+          sudo chown $(whoami) "$DATA_DIR" "$LOG_DIR"
+          
+          # Try to start MongoDB as background service first
+          echo "Attempting to start MongoDB service..."
           brew services start mongodb/brew/mongodb-community
           
-          # Wait for MongoDB to start
-          sleep 10
+          # Wait and check if service started
+          sleep 15
           
-          # Verify MongoDB is running
-          mongosh --eval "db.runCommand('ping')" || echo "Local MongoDB not ready yet"
+          # Check if MongoDB is responding
+          if ! mongosh --eval "db.runCommand('ping')" 2>/dev/null; then
+            echo "Service start failed, trying manual start..."
+            
+            # Kill any existing mongod processes
+            sudo pkill mongod || true
+            sleep 2
+            
+            # Start MongoDB manually
+            mongod --dbpath "$DATA_DIR" --logpath "$LOG_DIR/mongo.log" --fork
+            
+            # Wait for manual start
+            sleep 10
+          fi
+          
+          # Final verification with retry
+          for i in {1..6}; do
+            if mongosh --eval "db.runCommand('ping')" 2>/dev/null; then
+              echo "✅ MongoDB is running"
+              break
+            else
+              echo "Attempt $i: MongoDB not ready, waiting..."
+              sleep 5
+            fi
+            
+            if [ $i -eq 6 ]; then
+              echo "❌ MongoDB failed to start"
+              # Show logs for debugging
+              echo "MongoDB logs:"
+              tail -20 "$LOG_DIR/mongo.log" 2>/dev/null || echo "No logs found"
+              exit 1
+            fi
+          done
 
       - name: Setup local MongoDB test data
         run: |
+          # Verify MongoDB is still running before inserting data
+          echo "Verifying MongoDB connection before data setup..."
+          mongosh --eval "db.runCommand('ping')"
+          
           # Create test database and collections for local testing
           mongosh testMongoDB --eval "
             db.test_collection.insertMany([
@@ -216,22 +259,22 @@ jobs:
           echo "1. Testing local MongoDB connection:"
           mongosh testMongoDB --eval "db.runCommand('ping')" || echo "❌ Local connection failed"
           
-          # Test X.509 connection 
+          # Test X.509 connection (will likely fail in CI without proper network setup)
           echo "2. Testing X.509 Atlas connection:"
           mongosh "mongodb+srv://usernamepass.dbf7uue.mongodb.net/?authSource=%24external&authMechanism=MONGODB-X509&retryWrites=true&w=majority&appName=UsernamePass" \
             --tlsCertificateKeyFile mongo-cert.pem \
-            --eval "db.getSiblingDB('sample_weatherdata').runCommand('ping')" || echo "❌ X.509 connection failed"
+            --eval "db.getSiblingDB('sample_weatherdata').runCommand('ping')" || echo "❌ X.509 connection failed (expected in CI)"
           
-          # Test username/password connection 
+          # Test username/password connection (will likely fail in CI without proper network setup)
           echo "3. Testing username/password Atlas connection:"
           mongosh "mongodb+srv://mongoDBUser-password:9u5oyTjQiNtEHsTI@usernamepass.dbf7uue.mongodb.net/?retryWrites=true&w=majority&appName=UsernamePass" \
-            --eval "db.getSiblingDB('sample_weatherdata').runCommand('ping')" || echo "❌ Username/password connection failed"
+            --eval "db.getSiblingDB('sample_weatherdata').runCommand('ping')" || echo "❌ Username/password connection failed (expected in CI)"
 
       - name: Run script with X.509 credentials
         run: |
           echo "Testing script with X.509 authentication"
           chmod +x main.sh
-          ./main.sh --headless credentials-x509.json || echo "❌ X.509 test failed"
+          ./main.sh --headless credentials-x509.json || echo "❌ X.509 test failed (expected in CI)"
 
       - name: Run script with local MongoDB credentials
         run: |
@@ -243,7 +286,7 @@ jobs:
         run: |
           echo "Testing script with username/password authentication"
           chmod +x main.sh
-          ./main.sh --headless credentials-userpass.json || echo "❌ Username/password test failed"
+          ./main.sh --headless credentials-userpass.json || echo "❌ Username/password test failed (expected in CI)"
 
       - name: Verify PNG files were generated
         run: |
@@ -271,4 +314,8 @@ jobs:
       - name: Stop local MongoDB
         if: always()
         run: |
+          # Stop service first
           brew services stop mongodb/brew/mongodb-community || true
+          
+          # Kill any remaining mongod processes
+          sudo pkill mongod || true
