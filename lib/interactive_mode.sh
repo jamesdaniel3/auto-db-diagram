@@ -166,19 +166,24 @@ get_sqlite_config() {
 
 get_mongo_config() {
 
-    read -rp "Enter your database host (default: localhost): " HOST
-    [ -z "$HOST" ] && HOST="localhost"
+    read -rp "Enter your database connection string (if available): " USER_CONNECTION_STRING
 
-    while true; do
-        read -rp "Enter your database port (default: 27017): " PORT
-        [ -z "$PORT" ] && PORT="27017"
+    if [ -z "$USER_CONNECTION_STRING" ]; then
+        read -rp "Enter your database host (default: localhost): " HOST
+        [ -z "$HOST" ] && HOST="localhost"
 
-        if [[ "$PORT" =~ ^[0-9]+$ ]] && [ "$PORT" -ge 1 ] && [ "$PORT" -le 65535 ]; then
-            break
-        else
-            echo "Invalid port number. Please enter a valid port (1-65535)."
-        fi
-    done
+        while true; do
+            read -rp "Enter your database port (default: 27017): " PORT
+            [ -z "$PORT" ] && PORT="27017"
+
+            if [[ "$PORT" =~ ^[0-9]+$ ]] && [ "$PORT" -ge 1 ] && [ "$PORT" -le 65535 ]; then
+                break
+            else
+                echo "Invalid port number. Please enter a valid port (1-65535)."
+            fi
+        done
+    fi
+
     
     while true; do
         read -rp "Enter your database name: " DATABASE_NAME
@@ -189,10 +194,13 @@ get_mongo_config() {
         fi
     done
 
-    read -rp "Enter your username (press Enter if your database does not requie login): " USERNAME
 
-    read -s -rp "Enter your password (press Enter if your database does not requie login): " PASSWORD
-    echo
+    if [ -z "$USER_CONNECTION_STRING" ]; then
+        read -rp "Enter your username (press Enter if your database does not requie login): " USERNAME
+
+        read -s -rp "Enter your password (press Enter if your database does not requie login): " PASSWORD
+        echo
+    fi
 
     read -rp 'For the sake of performance, we only evaluate the 100 most recent documents in each collection, if you would like us to check all documents in the collection, enter "yes": ' EXHAUSTIVE_SEARCH
 

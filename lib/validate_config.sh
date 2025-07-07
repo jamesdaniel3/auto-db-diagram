@@ -29,6 +29,14 @@ validate_config() {
             fi
             ;;
         mongodb)
+            if [ -z "$DATABASE_NAME" ] || [ "$DATABASE_NAME" = "null" ]; then
+                error "Missing or invalid 'database_name' field in connection_info"
+            fi
+
+            if [ -n "$USER_CONNECTION_STRING" ]; then
+                return
+            fi
+
             if [ -z "$HOST" ] || [ "$HOST" = "null" ]; then
                 error "Missing or invalid 'host' field in connection_info"
             fi

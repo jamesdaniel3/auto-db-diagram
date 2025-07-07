@@ -6,10 +6,16 @@ run_mongo_extraction() {
     DATA_DIR="$SCRIPT_DIR/mongo_collections"
     mkdir -p "$DATA_DIR"
 
+    # pull the host and the port out of the connection string
     echo "Connecting to MongoDB at $HOST:$PORT..."
 
-    # this does not handle +srv or auth 
-    CONNECTION_STRING="mongodb://$HOST:$PORT"
+    
+    if [ -n "$USER_CONNECTION_STRING" ]; then
+        CONNECTION_STRING="$USER_CONNECTION_STRING"
+    else
+        # this does not handle +srv or auth 
+        CONNECTION_STRING="mongodb://$HOST:$PORT"
+    fi
 
     EXCLUDE_PATTERN=$(IFS='|'; echo "${EXCLUDED_TABLES[*]}")
 
@@ -27,7 +33,6 @@ run_mongo_extraction() {
         LIMIT_FLAG="--limit=100"
     fi
 
-    # this should have an exhasutive flag that prevents the limit
     while IFS= read -r collection; do
         if [[ -n "$collection" ]]; then 
             mongoexport \
@@ -41,7 +46,8 @@ run_mongo_extraction() {
         fi
     done <<< "$COLLECTIONS"
 
-    local extracted_at=$(date -Iseconds)
+    local extracted_at
+    extracted_at=$(date -Iseconds)
 
     echo "Export completed. Generating schema..."
 

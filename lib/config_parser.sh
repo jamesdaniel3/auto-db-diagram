@@ -7,21 +7,18 @@ parse_config() {
         error "'$CONFIG_FILE' is not valid JSON"
     fi
 
-    # Parse database_type (case-insensitive)
     DATABASE_TYPE=$(jq -r '
         to_entries | 
         map(select(.key | ascii_downcase == "database_type")) | 
         .[0].value // empty
     ' "$CONFIG_FILE")
 
-    # Extract connection_info object (case-insensitive)
     CONNECTION_INFO=$(jq -r '
         to_entries |
         map(select(.key | ascii_downcase == "connection_info")) |
         .[0].value
     ' "$CONFIG_FILE")
 
-    # Parse fields from connection_info (case-insensitive)
     HOST=$(jq -r '
         to_entries |
         map(select(.key | ascii_downcase == "host")) |
@@ -58,6 +55,11 @@ parse_config() {
         .[0].value // empty
     ' <<< "$CONNECTION_INFO")
 
+    USER_CONNECTION_STRING=$(jq -r '
+        to_entries |
+        map(select(.key | ascii_downcase == "connection_string")) |
+        .[0].value // empty
+    ' <<< "$CONNECTION_INFO")
 
     EXCLUDED_TABLES=()
     while IFS= read -r table; do
@@ -68,7 +70,6 @@ parse_config() {
         .[0].value[]? // empty
     ' "$CONFIG_FILE")
 
-    # Parse output file (optional, case-insensitive)
     OUTPUT_FILE=$(jq -r '
         to_entries | 
         map(select(.key | ascii_downcase == "output_file")) | 
