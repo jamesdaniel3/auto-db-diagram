@@ -1,7 +1,7 @@
-name: Ubuntu MySQL system tests
+name: Ubuntu MySQL System Tests
 on:
-  # pull_request:
-  #   branches: [main]
+  pull_request:
+    branches: [main]
 jobs:
   test:
     runs-on: ${{ matrix.os }}

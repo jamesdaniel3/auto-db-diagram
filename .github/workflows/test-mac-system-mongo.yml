@@ -1,4 +1,4 @@
-name: macOS mongodb system tests
+name: MacOS MongoDB System Tests
 on:
   pull_request:
     branches: [main]
