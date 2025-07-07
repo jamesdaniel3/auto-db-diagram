@@ -7,6 +7,7 @@ This tool was built to solve the pains of maintaining database diagrams on softw
 ## Installation
 
 To install on Mac:
+To install on Mac:
 
 ```bash
 brew tap jamesdaniel3/auto-db-diagram
