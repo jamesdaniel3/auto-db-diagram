@@ -29,7 +29,7 @@ Run in interactive mode with guided database connection setup.
 .B db-diagram --headless <path/to/config.json>
 Generate diagram using existing configuration file.
 .SH CONFIGURATION
-Configuration files should be in JSON format with one of the following structures:
+Configuration files should be in JSON format below are two examples of valid configs, more can be found in the README of the github repo:
 .PP
 .RS
 .nf
@@ -61,6 +61,8 @@ Full support for PostgreSQL databases (version 9.0+)
 Full support for SQLite databases
 .B MySQL
 Full support for MySQL databases
+.B MongoDB
+Beta support for MongoDB instances
 .SH FILES
 .TP
 .I database_schema.json
@@ -77,6 +79,9 @@ Generated diagram image
 PostgreSQL command-line client (for PostgreSQL databases)
 .B mysql
 MySQL command-line client (for MySQL databases)
+.TP
+.B mongosh
+MongoDB command-line client (for MongoDB databases)
 .TP
 .B jq
 JSON processor for configuration parsing
