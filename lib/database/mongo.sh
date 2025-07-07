@@ -6,18 +6,11 @@ run_mongo_extraction() {
     DATA_DIR="$SCRIPT_DIR/mongo_collections"
     mkdir -p "$DATA_DIR"
     
-    if [ -n "$USER_CONNECTION_STRING" ]; then
-        CONNECTION_STRING="$USER_CONNECTION_STRING"
-        echo "Connecting to MongoDB at $USER_CONNECTION_STRING..."
-    else
-        # this does not handle +srv or auth 
-        CONNECTION_STRING="mongodb://$HOST:$PORT"
-        echo "Connecting to MongoDB at $HOST:$PORT..."
-    fi
+    build_connection_string_and_flags
 
     EXCLUDE_PATTERN=$(IFS='|'; echo "${EXCLUDED_TABLES[*]}")
 
-    COLLECTIONS=$(mongosh "$CONNECTION_STRING" --quiet --eval "
+    COLLECTIONS=$(mongosh "$CONNECTION_STRING" "$MONGOSH_FLAGS" --quiet --eval "
         db = db.getSiblingDB('$DATABASE_NAME');
         db.runCommand('listCollections').cursor.firstBatch.forEach(
             function(collection) {print(collection.name)}
@@ -40,6 +33,7 @@ run_mongo_extraction() {
                 --jsonArray \
                 --quiet \
                 $LIMIT_FLAG \
+                "$MONGOEXPORT_FLAGS" \
                 --out="$DATA_DIR/${collection}.json"
         fi
     done <<< "$COLLECTIONS"
@@ -49,17 +43,7 @@ run_mongo_extraction() {
 
     echo "Export completed. Generating schema..."
 
-    cat > "$OUTPUT_FILE" << EOF 
-{
-    "database_info": {
-        "database_name": "$DATABASE_NAME",
-        "database_type": "$DATABASE_TYPE",
-        "host": "$HOST",
-        "port": "$PORT",
-        "extracted_at": "$extracted_at"
-    },
-    "tables": [
-EOF
+    generate_schema_header
 
     local first_table=true
 
@@ -80,5 +64,127 @@ EOF
   ]
 }
 EOF
+}
 
+# mongodb+srv://ftn2mr:Sjc01698$@bartab-database.qcq5z.mongodb.net/?retryWrites=true&w=majority&appName=bartab-database
+
+build_connection_string_and_flags() {
+    MONGOSH_FLAGS=""
+    MONGOEXPORT_FLAGS=""
+    
+    if [[ -n "$USER_CONNECTION_STRING" ]]; then
+        if [[ "$USER_CONNECTION_STRING" =~ mongodb\+srv:// ]] && [[ ! "$USER_CONNECTION_STRING" =~ /[^?]+ ]]; then
+            USER_CONNECTION_STRING="${USER_CONNECTION_STRING%\?*}/${DATABASE_NAME}?${USER_CONNECTION_STRING#*\?}"
+        fi
+        CONNECTION_STRING="$USER_CONNECTION_STRING"
+    else
+        build_connection_string_from_components
+    fi
+    
+    add_ssl_flags
+}
+
+build_connection_string_from_components() {
+    local protocol="mongodb"
+    
+    if [[ "$CONNECT_WITH_SERVICE_RECORD" == "true" ]]; then
+        protocol="mongodb+srv"
+    fi
+    
+    CONNECTION_STRING="${protocol}://"
+    
+    if [[ -n "$USERNAME" && -n "$PASSWORD" ]]; then
+        CONNECTION_STRING="${CONNECTION_STRING}${USERNAME}:${PASSWORD}@"
+    elif [[ -n "$USERNAME" ]]; then
+        CONNECTION_STRING="${CONNECTION_STRING}${USERNAME}@"
+    fi
+    
+    CONNECTION_STRING="${CONNECTION_STRING}${HOST}"
+    
+    if [[ "$CONNECT_WITH_SERVICE_RECORD" != "true" ]]; then
+        CONNECTION_STRING="${CONNECTION_STRING}:${PORT}"
+    fi
+    
+    CONNECTION_STRING="${CONNECTION_STRING}/${DATABASE_NAME}"
+    
+    local query_params=()
+    
+    if [[ "$CONNECT_WITH_SSL" == "true" ]]; then
+        query_params+=("ssl=true")
+    fi
+    
+    if [[ "$CONNECT_WITH_INVALID_CERT" == "true" ]]; then
+        query_params+=("sslAllowInvalidCertificates=true")
+    fi
+    
+    if [[ -n "$USERNAME" ]]; then
+        query_params+=("authSource=admin")
+    fi
+    
+    if [[ ${#query_params[@]} -gt 0 ]]; then
+        local query_string
+        query_string=$(IFS='&'; echo "${query_params[*]}")
+        CONNECTION_STRING="${CONNECTION_STRING}?${query_string}"
+    fi
+}
+
+add_ssl_flags() {
+    if [[ "$CONNECT_WITH_SSL" == "true" ]]; then
+        MONGOSH_FLAGS="$MONGOSH_FLAGS --tls"
+        MONGOEXPORT_FLAGS="$MONGOEXPORT_FLAGS --ssl"
+        
+        if [[ "$CONNECT_WITH_INVALID_CERT" == "true" ]]; then
+            MONGOSH_FLAGS="$MONGOSH_FLAGS --tlsAllowInvalidCertificates"
+            MONGOEXPORT_FLAGS="$MONGOEXPORT_FLAGS --sslAllowInvalidCertificates"
+        fi
+        
+        if [[ -n "$CA_FILE_PATH" ]]; then
+            MONGOSH_FLAGS="$MONGOSH_FLAGS --tlsCAFile \"$CA_FILE_PATH\""
+            MONGOEXPORT_FLAGS="$MONGOEXPORT_FLAGS --sslCAFile \"$CA_FILE_PATH\""
+        fi
+        
+        if [[ -n "$CLIENT_CERT_FILE_PATH" ]]; then
+            MONGOSH_FLAGS="$MONGOSH_FLAGS --tlsCertificateKeyFile \"$CLIENT_CERT_FILE_PATH\""
+            MONGOEXPORT_FLAGS="$MONGOEXPORT_FLAGS --sslPEMKeyFile \"$CLIENT_CERT_FILE_PATH\""
+        fi
+    fi
+}
+
+generate_schema_header() {
+    local display_host="$HOST"
+    local display_port="$PORT"
+    
+    if [[ -n "$USER_CONNECTION_STRING" ]]; then
+        # if using connection string, try to extract host/port for display
+        if [[ "$USER_CONNECTION_STRING" =~ mongodb(\+srv)?://([^:/@]+)(:([0-9]+))?@ ]]; then
+            display_host="${BASH_REMATCH[2]}"
+            if [[ -n "${BASH_REMATCH[4]}" ]]; then
+                display_port="${BASH_REMATCH[4]}"
+            elif [[ "$USER_CONNECTION_STRING" =~ mongodb\+srv ]]; then
+                display_port="N/A (SRV)"
+            fi
+        elif [[ "$USER_CONNECTION_STRING" =~ mongodb(\+srv)?://([^:/@]+)(:([0-9]+))?/ ]]; then
+            display_host="${BASH_REMATCH[2]}"
+            if [[ -n "${BASH_REMATCH[4]}" ]]; then
+                display_port="${BASH_REMATCH[4]}"
+            elif [[ "$USER_CONNECTION_STRING" =~ mongodb\+srv ]]; then
+                display_port="N/A (SRV)"
+            fi
+        else
+            display_host="Provided via connection string"
+            display_port="N/A"
+        fi
+    fi
+
+    cat > "$OUTPUT_FILE" << EOF 
+{
+    "database_info": {
+        "database_name": "$DATABASE_NAME",
+        "database_type": "$DATABASE_TYPE",
+        "host": "$display_host",
+        "port": "$display_port",
+        "extracted_at": "$extracted_at"
+    },
+    "tables": [
+EOF
 }

@@ -52,16 +52,16 @@ get_mongo_config() {
         echo
     fi
 
-    read -rp "Does your MongoDB instance require SSL/TLS? (yes/y): " CONNECT_WITH_SSL
-    read -rp "Allow invalid SSL certificates? (yes/y, typically only for development): " CONNECT_WITH_INVALID_CERT
-    read -rp "CA certificate file path (leave blank if not required): " CA_FILE_PATH
-    read -rp "Client certificate file path (leave blank if not required): " CLIENT_CERT_FILE_PATH
+    read -rp "Does your MongoDB instance require SSL/TLS? (yes/y): " SSL_ENABLED
+    read -rp "Allow invalid SSL certificates? (yes/y, typically only for development): " SSL_ALLOW_INVALID_CERTS
+    read -rp "CA certificate file path (leave blank if not required): " SSL_CA_FILE_PATH
+    read -rp "Client certificate file path (leave blank if not required): " SSL_CLIENT_CERT_PATH
 
     read -rp 'Analyze all documents in each collection? (yes for complete analysis, no for sample of 100): ' EXHAUSTIVE_SEARCH
 
     # Convert yes/no responses to true/false using the helper function
     EXHAUSTIVE_SEARCH=$(yn_to_bool "$EXHAUSTIVE_SEARCH")
     CONNECT_WITH_SERVICE_RECORD=$(yn_to_bool "$CONNECT_WITH_SERVICE_RECORD")
-    CONNECT_WITH_SSL=$(yn_to_bool "$CONNECT_WITH_SSL")
-    CONNECT_WITH_INVALID_CERT=$(yn_to_bool "$CONNECT_WITH_INVALID_CERT")
+    SSL_ENABLED=$(yn_to_bool "$SSL_ENABLED")
+    SSL_ALLOW_INVALID_CERTS=$(yn_to_bool "$SSL_ALLOW_INVALID_CERTS")
 }
