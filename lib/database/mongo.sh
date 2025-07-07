@@ -10,7 +10,7 @@ run_mongo_extraction() {
 
     EXCLUDE_PATTERN=$(IFS='|'; echo "${EXCLUDED_TABLES[*]}")
 
-    COLLECTIONS=$(mongosh "$CONNECTION_STRING" "$MONGOSH_FLAGS" --quiet --eval "
+    COLLECTIONS=$(mongosh "$CONNECTION_STRING" $MONGOSH_FLAGS --quiet --eval "
         db = db.getSiblingDB('$DATABASE_NAME');
         db.runCommand('listCollections').cursor.firstBatch.forEach(
             function(collection) {print(collection.name)}
@@ -33,7 +33,7 @@ run_mongo_extraction() {
                 --jsonArray \
                 --quiet \
                 $LIMIT_FLAG \
-                "$MONGOEXPORT_FLAGS" \
+                $MONGOEXPORT_FLAGS \
                 --out="$DATA_DIR/${collection}.json"
         fi
     done <<< "$COLLECTIONS"
@@ -65,8 +65,6 @@ run_mongo_extraction() {
 }
 EOF
 }
-
-# mongodb+srv://ftn2mr:Sjc01698$@bartab-database.qcq5z.mongodb.net/?retryWrites=true&w=majority&appName=bartab-database
 
 build_connection_string_and_flags() {
     MONGOSH_FLAGS=""
@@ -109,11 +107,11 @@ build_connection_string_from_components() {
     
     local query_params=()
     
-    if [[ "$CONNECT_WITH_SSL" == "true" ]]; then
+    if [[ "$SSL_ENABLED" == "true" ]]; then
         query_params+=("ssl=true")
     fi
     
-    if [[ "$CONNECT_WITH_INVALID_CERT" == "true" ]]; then
+    if [[ "$SSL_ALLOW_INVALID_CERTS" == "true" ]]; then
         query_params+=("sslAllowInvalidCertificates=true")
     fi
     
@@ -129,23 +127,23 @@ build_connection_string_from_components() {
 }
 
 add_ssl_flags() {
-    if [[ "$CONNECT_WITH_SSL" == "true" ]]; then
+    if [[ "$SSL_ENABLED" == "true" ]]; then
         MONGOSH_FLAGS="$MONGOSH_FLAGS --tls"
         MONGOEXPORT_FLAGS="$MONGOEXPORT_FLAGS --ssl"
         
-        if [[ "$CONNECT_WITH_INVALID_CERT" == "true" ]]; then
+        if [[ "$SSL_ALLOW_INVALID_CERTS" == "true" ]]; then
             MONGOSH_FLAGS="$MONGOSH_FLAGS --tlsAllowInvalidCertificates"
             MONGOEXPORT_FLAGS="$MONGOEXPORT_FLAGS --sslAllowInvalidCertificates"
         fi
         
-        if [[ -n "$CA_FILE_PATH" ]]; then
-            MONGOSH_FLAGS="$MONGOSH_FLAGS --tlsCAFile \"$CA_FILE_PATH\""
-            MONGOEXPORT_FLAGS="$MONGOEXPORT_FLAGS --sslCAFile \"$CA_FILE_PATH\""
+        if [[ -n "$SSL_CA_FILE_PATH" ]]; then
+            MONGOSH_FLAGS="$MONGOSH_FLAGS --tlsCAFile \"$SSL_CA_FILE_PATH\""
+            MONGOEXPORT_FLAGS="$MONGOEXPORT_FLAGS --sslCAFile \"$SSL_CA_FILE_PATH\""
         fi
         
-        if [[ -n "$CLIENT_CERT_FILE_PATH" ]]; then
-            MONGOSH_FLAGS="$MONGOSH_FLAGS --tlsCertificateKeyFile \"$CLIENT_CERT_FILE_PATH\""
-            MONGOEXPORT_FLAGS="$MONGOEXPORT_FLAGS --sslPEMKeyFile \"$CLIENT_CERT_FILE_PATH\""
+        if [[ -n "$SSL_CLIENT_CERT_PATH" ]]; then
+            MONGOSH_FLAGS="$MONGOSH_FLAGS --tlsCertificateKeyFile \"$SSL_CLIENT_CERT_PATH\""
+            MONGOEXPORT_FLAGS="$MONGOEXPORT_FLAGS --sslPEMKeyFile \"$SSL_CLIENT_CERT_PATH\""
         fi
     fi
 }

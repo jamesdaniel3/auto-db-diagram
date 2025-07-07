@@ -17,11 +17,11 @@ get_mongo_config() {
     read -rp "Enter your MongoDB connection string (optional, leave blank to configure manually): " USER_CONNECTION_STRING
 
     if [ -z "$USER_CONNECTION_STRING" ]; then
-        read -rp "Enter your database host (default: localhost): " HOST
+        read -rp "Enter your cluster host (default: localhost): " HOST
         [ -z "$HOST" ] && HOST="localhost"
 
         while true; do
-            read -rp "Enter your database port (default: 27017): " PORT
+            read -rp "Enter your cluster port (default: 27017): " PORT
             [ -z "$PORT" ] && PORT="27017"
 
             if [[ "$PORT" =~ ^[0-9]+$ ]] && [ "$PORT" -ge 1 ] && [ "$PORT" -le 65535 ]; then
@@ -44,7 +44,7 @@ get_mongo_config() {
 
 
     if [ -z "$USER_CONNECTION_STRING" ]; then
-        read -rp "Does your connection string use +srv format? (yes/y): " CONNECT_WITH_SERVICE_RECORD
+        read -rp "Does your cluster use +srv format? (yes/y): " CONNECT_WITH_SERVICE_RECORD
 
         read -rp "Enter your username (leave blank if no authentication required): " USERNAME
 
@@ -52,7 +52,7 @@ get_mongo_config() {
         echo
     fi
 
-    read -rp "Does your MongoDB instance require SSL/TLS? (yes/y): " SSL_ENABLED
+    read -rp "Does your MongoDB cluster require SSL/TLS? (yes/y): " SSL_ENABLED
     read -rp "Allow invalid SSL certificates? (yes/y, typically only for development): " SSL_ALLOW_INVALID_CERTS
     read -rp "CA certificate file path (leave blank if not required): " SSL_CA_FILE_PATH
     read -rp "Client certificate file path (leave blank if not required): " SSL_CLIENT_CERT_PATH
