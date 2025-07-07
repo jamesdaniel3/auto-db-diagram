@@ -16,11 +16,19 @@ cleanup() {
     tput cnorm  # restore cursor in the event that the user quits while cursor is hidden
     rm -f "$OUTPUT_FILE"
     rm -rf "$SCRIPT_DIR/mongo_collections"
-    exit 0
+    exit 1
+}
+
+on_exit() {
+    local exit_code=$?
+    if [[ $exit_code -ne 0 ]]; then
+        cleanup
+    fi
 }
 
 # exit scenarios
-trap cleanup INT TERM QUIT ERR EXIT
+trap cleanup INT TERM QUIT ERR 
+trap on_exit EXIT
 
 show_usage_error_message() {
     echo "Invalid usage of db-diagram, run db-diagram --help for more info or man db-diagram for a full manpage "
@@ -142,9 +150,10 @@ run_visualization() {
             fi
         fi
         
-        # clean up the JSON output file 
+        # clean up the JSON output files
         if [ -f "$OUTPUT_FILE" ]; then
             rm "$OUTPUT_FILE"
+            rm -rf "$SCRIPT_DIR/mongo_collections"
         fi
     else
         echo "Note: visualize.py not found. Output saved to '$OUTPUT_FILE'"
