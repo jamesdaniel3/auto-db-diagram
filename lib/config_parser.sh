@@ -74,4 +74,10 @@ parse_config() {
         map(select(.key | ascii_downcase == "output_file")) | 
         .[0].value // "database_schema.json"
     ' "$CONFIG_FILE")
+
+    EXHAUSTIVE_SEARCH=$(jq -r '
+        to_entries | 
+        map(select(.key | ascii_downcase == "exhaustive_search")) | 
+        .[0].value // "false"
+    ' "$CONFIG_FILE")
 }

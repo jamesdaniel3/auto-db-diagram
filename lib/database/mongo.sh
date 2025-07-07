@@ -20,6 +20,13 @@ run_mongo_extraction() {
         );
     " | grep -v -E "^($EXCLUDE_PATTERN)$")
 
+    if [[ "$EXHAUSTIVE_SEARCH" == "true" ]]; then
+        LIMIT_FLAG=""
+        echo "Running exhaustive search (no limit)"
+    else
+        LIMIT_FLAG="--limit=100"
+    fi
+
     # this should have an exhasutive flag that prevents the limit
     while IFS= read -r collection; do
         if [[ -n "$collection" ]]; then 
@@ -29,7 +36,7 @@ run_mongo_extraction() {
                 --collection="$collection" \
                 --jsonArray \
                 --quiet \
-                --limit=100 \
+                $LIMIT_FLAG \
                 --out="$DATA_DIR/${collection}.json"
         fi
     done <<< "$COLLECTIONS"

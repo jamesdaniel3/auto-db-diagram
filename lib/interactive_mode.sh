@@ -193,6 +193,18 @@ get_mongo_config() {
 
     read -s -rp "Enter your password (press Enter if your database does not requie login): " PASSWORD
     echo
+
+    read -rp 'For the sake of performance, we only evaluate the 100 most recent documents in each collection, if you would like us to check all documents in the collection, enter "yes": ' EXHAUSTIVE_SEARCH
+
+    # written this way for the sake of compatibility with older versions of bash
+    case "$EXHAUSTIVE_SEARCH" in
+        [Yy][Ee][Ss]|[Yy])
+            EXHAUSTIVE_SEARCH=true
+            ;;
+        *)
+            EXHAUSTIVE_SEARCH=false
+            ;;
+    esac
     
 }
 

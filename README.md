@@ -6,7 +6,7 @@ This tool was built to solve the pains of maintaining database diagrams on softw
 
 ## Installation
 
-To install on Mac or Linux:
+To install on Mac:
 
 ```bash
 brew install db-diagram
@@ -59,6 +59,24 @@ SQLiteConfig {
   };
   excluded_tables?: string[];
 }
+```
+
+```TypeScript
+MongoDBConfig {
+  database_type: "mongodb"
+  connection_info: {
+    connection_string?: string,
+    host?: string;
+    port?: number;
+    database_name: string;
+    username?: string;
+    password?: string;
+  };
+  excluded_tables?: string[];
+  exhaustive_search?: boolean;
+}
+// If a connection string is used, all fields in connection_info are optional aside from database_name
+// For the sake of performance, Auto DB Diagram only evaluates the first 100 documents in each collection. If you would like to disable this, you can set exhaustive search to true (defaults to fals)
 ```
 
 Note: a question mark denotes an optional field, any fields included but not listed will be ignored.
