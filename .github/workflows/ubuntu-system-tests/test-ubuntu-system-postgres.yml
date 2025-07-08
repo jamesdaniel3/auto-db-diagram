@@ -1,20 +1,17 @@
 name: Ubuntu PostgreSQL System Tests
 on:
-  pull_request:
-    branches: [main]
+  workflow_call:
+    inputs:
+      os-matrix:
+        description: 'OS matrix configuration as JSON string'
+        required: true
+        type: string
 jobs:
   test:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        include:
-          - os: ubuntu-24.04
-            postgres_version: "16"
-            arch: x64
-
-          - os: ubuntu-22.04
-            postgres_version: "14"
-            arch: x64
+        include: ${{ fromJson(inputs.os-matrix) }}
     steps:
       - name: Debug runner specs
         run: |
