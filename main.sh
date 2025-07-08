@@ -137,14 +137,12 @@ run_visualization() {
             if python3 "$SCRIPT_DIR/visualize.py" "$OUTPUT_FILE"; then
                 echo "Visualization script completed successfully"
             else
-                echo "Visualization script failed"
                 return 1
             fi
         else
             if python "$SCRIPT_DIR/visualize.py" "$OUTPUT_FILE"; then
                 echo "Visualization script completed successfully"
             else
-                echo "Visualization script failed"
                 return 1
             fi
         fi
