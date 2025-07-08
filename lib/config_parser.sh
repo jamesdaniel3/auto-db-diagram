@@ -1,23 +1,23 @@
 #!/bin/bash
 
 parse_config() {
-    CONFIG_FILE="$1"
+    local config_file="$1"
 
-    if ! jq empty "$CONFIG_FILE" 2>/dev/null; then
-        error "'$CONFIG_FILE' is not valid JSON"
+    if ! jq empty "$config_file" 2>/dev/null; then
+        error "'$config_file' is not valid JSON"
     fi
 
     DATABASE_TYPE=$(jq -r '
         to_entries | 
         map(select(.key | ascii_downcase == "database_type")) | 
         .[0].value // empty
-    ' "$CONFIG_FILE")
+    ' "$config_file")
 
     CONNECTION_INFO=$(jq -r '
         to_entries |
         map(select(.key | ascii_downcase == "connection_info")) |
         .[0].value
-    ' "$CONFIG_FILE")
+    ' "$config_file")
 
     HOST=$(jq -r '
         to_entries |
@@ -98,17 +98,17 @@ parse_config() {
         to_entries | 
         map(select(.key | ascii_downcase == "excluded_tables")) | 
         .[0].value[]? // empty
-    ' "$CONFIG_FILE")
+    ' "$config_file")
 
     OUTPUT_FILE=$(jq -r '
         to_entries | 
         map(select(.key | ascii_downcase == "output_file")) | 
         .[0].value // "database_schema.json"
-    ' "$CONFIG_FILE")
+    ' "$config_file")
 
     EXHAUSTIVE_SEARCH=$(jq -r '
         to_entries | 
         map(select(.key | ascii_downcase == "exhaustive_search")) | 
         .[0].value // "false"
-    ' "$CONFIG_FILE")
+    ' "$config_file")
 }

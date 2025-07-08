@@ -1,18 +1,17 @@
 name: Ubuntu SQLite System Tests
 on:
-  pull_request:
-    branches: [main]
+  workflow_call:
+    inputs:
+      os-matrix:
+        description: 'OS matrix configuration as JSON string'
+        required: true
+        type: string
 jobs:
   test:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        include:
-          - os: ubuntu-22.04
-            arch: x64
-
-          - os: ubuntu-24.04
-            arch: x64
+        include: ${{ fromJson(inputs.os-matrix) }}
     steps:
       - name: Debug runner specs
         run: |

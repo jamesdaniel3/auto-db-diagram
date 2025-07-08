@@ -12,7 +12,7 @@ get_database_display_name() {
 }
 
 # available database types
-DATABASE_KEYS=("postgres" "sqlite" "mysql" "mongodb")  # add more as needed
+DATABASE_KEYS=("postgres" "sqlite" "mysql" "mongodb") 
 
 show_database_menu() {
     echo "Select the type of database you want to connect to?"

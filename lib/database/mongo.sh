@@ -3,13 +3,15 @@
 run_mongo_extraction() {
     OUTPUT_FILE="${DATABASE_NAME}_schema.json"
 
-    DATA_DIR="$SCRIPT_DIR/mongo_collections"
+    local DATA_DIR="$SCRIPT_DIR/mongo_collections"
     mkdir -p "$DATA_DIR"
     
     build_connection_string_and_flags
 
+    local EXCLUDE_PATTERN
     EXCLUDE_PATTERN=$(IFS='|'; echo "${EXCLUDED_TABLES[*]}")
 
+    local COLLECTIONS
     COLLECTIONS=$(mongosh "$CONNECTION_STRING" $MONGOSH_FLAGS --quiet --eval "
         db = db.getSiblingDB('$DATABASE_NAME');
         db.runCommand('listCollections').cursor.firstBatch.forEach(

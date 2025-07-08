@@ -1,0 +1,41 @@
+name: All Database System Tests
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  postgresql-macos:
+    uses: ./.github/workflows/test-mac-system-postgres.yml
+    with:
+      os-matrix: '[{"os": "macos-13", "arch": "intel"}, {"os": "macos-14", "arch": "arm64"}, {"os": "macos-15", "arch": "arm64"}]'
+
+  mysql-macos:
+    uses: ./.github/workflows/test-mac-system-mysql.yml
+    with:
+      os-matrix: '[{"os": "macos-13", "arch": "intel"}, {"os": "macos-14", "arch": "arm64"}, {"os": "macos-15", "arch": "arm64"}]'
+
+  sqlite-macos:
+    uses: ./.github/workflows/test-mac-system-sqlite.yml
+    with:
+      os-matrix: '[{"os": "macos-13", "arch": "intel"}, {"os": "macos-14", "arch": "arm64"}, {"os": "macos-15", "arch": "arm64"}]'
+
+  mongodb-macos:
+    uses: ./.github/workflows/test-mac-system-mongo.yml
+    with:
+      os-matrix: '[{"os": "macos-13", "arch": "intel"}, {"os": "macos-14", "arch": "arm64"}, {"os": "macos-15", "arch": "arm64"}]'
+
+  postgresql-linux:
+    uses: ./.github/workflows/test-ubuntu-system-postgres.yml
+    with:
+      os-matrix: '[{"os": "ubuntu-22.04", "postgres_version": "14", "arch": "x64"}, {"os": "ubuntu-24.04", "postgres_version": "16", "arch": "x64"}]'
+
+  mysql-linux:
+    uses: ./.github/workflows/test-ubuntu-system-mysql.yml
+    with:
+      os-matrix: '[{"os": "ubuntu-22.04", "mysql_version": "8.0", "arch": "x64"}, {"os": "ubuntu-24.04", "mysql_version": "8.0", "arch": "x64"}]'
+  
+  sqlite-linux:
+    uses: ./.github/workflows/test-ubuntu-system-sqlite.yml
+    with:
+      os-matrix: '[{"os": "ubuntu-22.04", "arch": "x64"}, {"os": "ubuntu-24.04", "arch": "x64"}]'

@@ -37,6 +37,9 @@ def generate_dot_from_database_schema(schema_data: Dict[str, Any]) -> str:
 """
     
     tables = [table for table in schema_data['tables'] ]
+
+    if len(tables) == 0:
+        return None
     
     # Generate table definitions
     for table in tables:
@@ -226,6 +229,11 @@ def main():
         # Generate DOT content
         print("Generating DOT content...")
         dot_content = generate_dot_from_database_schema(schema_data)
+
+        if dot_content is None:
+            print("No tables could be found")
+            print("Check your login information and that you did not exclude all tables")
+            sys.exit(2)
         
         # Save DOT file
         save_dot_file(dot_content, args.output_file)
@@ -254,20 +262,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-def generate_erd_from_json_string(json_string: str, output_file: str = 'erd.dot') -> str:
-    """
-    Generate ERD from JSON string.
-    
-    Args:
-        json_string: JSON schema as string
-        output_file: Output DOT file path
-        
-    Returns:
-        Generated DOT content
-    """
-    schema_data = json.loads(json_string)
-    dot_content = generate_dot_from_database_schema(schema_data)
-    save_dot_file(dot_content, output_file)
-    return dot_content
