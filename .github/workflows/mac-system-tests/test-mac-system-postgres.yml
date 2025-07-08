@@ -1,21 +1,17 @@
 name: MacOS PostgreSQL System Tests
 on:
-  pull_request:
-    branches: [main]
+  workflow_call:
+    inputs:
+      os-matrix:
+        description: 'OS matrix configuration as JSON string'
+        required: true
+        type: string
 jobs:
   test:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        include:
-          - os: macos-13
-            arch: intel
-
-          - os: macos-14
-            arch: arm64
-
-          - os: macos-15
-            arch: arm64
+        include: ${{ fromJson(inputs.os-matrix) }}
     steps:
       - name: Debug runner specs
         run: |
