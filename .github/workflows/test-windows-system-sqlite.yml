@@ -23,5 +23,22 @@ jobs:
           Write-Host "Processor: $((Get-CimInstance Win32_Processor).Name)"
           Write-Host "Architecture: $env:PROCESSOR_ARCHITECTURE"
           Write-Host "Windows Version: $((Get-CimInstance Win32_OperatingSystem).Version)"
-      
-      
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          # Install chocolatey if not present
+          if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
+            Set-ExecutionPolicy Bypass -Scope Process -Force
+            [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+            iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+          }
+
+          choco install jq graphviz sqlite -y --no-progress
+
+          $env:PATH = [System.Environment]::getEnvironmentVariable("PATH","Machine") + ";" + [System.Environment]::getEnvironmentVariable("PATH", "User")
+
+          sqlite3 --version
