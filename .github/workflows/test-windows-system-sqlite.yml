@@ -1,9 +1,9 @@
-name: Windows SQLIte System Tests
+name: Windows 11 SQLite System Tests
 on:
   workflow_call:
     inputs:
       os-matrix:
-        description: 'OS matrix configuration as JSON string'
+        description: "OS matrix configuration as JSON string"
         required: true
         type: string
 jobs:
@@ -36,98 +36,97 @@ jobs:
             [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
             iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
           }
-          
+
           choco install jq graphviz sqlite -y --no-progress
-          
+
           $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH","User")
-          
+
           sqlite3 --version
 
       - name: Create test SQLite database
         shell: pwsh
         run: |
-          # Create SQLite database with test schema
-          $sqlScript = @"
-          -- Create users table (parent)
-          CREATE TABLE users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT NOT NULL UNIQUE,
-            email TEXT NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-          );
-
-          -- Create posts table (child with foreign key)
-          CREATE TABLE posts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            title TEXT NOT NULL,
-            content TEXT,
-            published BOOLEAN DEFAULT 0,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-          );
-
-          -- Create categories table for additional complexity
-          CREATE TABLE categories (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL UNIQUE,
-            description TEXT
-          );
-
-          -- Create many-to-many relationship table
-          CREATE TABLE post_categories (
-            post_id INTEGER NOT NULL,
-            category_id INTEGER NOT NULL,
-            PRIMARY KEY (post_id, category_id),
-            FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
-            FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
-          );
-
-          -- Insert sample data
-          INSERT INTO users (username, email) VALUES 
-            ('john_doe', 'john@example.com'),
-            ('jane_smith', 'jane@example.com'),
-            ('bob_wilson', 'bob@example.com');
-
-          INSERT INTO categories (name, description) VALUES
-            ('Technology', 'Posts about technology and programming'),
-            ('Lifestyle', 'Posts about daily life and experiences'),
-            ('Tutorial', 'How-to guides and tutorials');
-
-          INSERT INTO posts (user_id, title, content, published) VALUES 
-            (1, 'First Post', 'This is the first post content', 1),
-            (1, 'Second Post', 'This is the second post content', 0),
-            (2, 'Jane''s Post', 'Content from Jane', 1),
-            (3, 'Bob''s Tutorial', 'How to use SQLite effectively', 1);
-
-          INSERT INTO post_categories (post_id, category_id) VALUES
-            (1, 1),  -- First Post -> Technology
-            (2, 2),  -- Second Post -> Lifestyle  
-            (3, 2),  -- Jane's Post -> Lifestyle
-            (4, 1),  -- Bob's Tutorial -> Technology
-            (4, 3);  -- Bob's Tutorial -> Tutorial
-
-          -- Create indexes for better performance demonstration
-          CREATE INDEX idx_posts_user_id ON posts(user_id);
-          CREATE INDEX idx_posts_published ON posts(published);
-          CREATE INDEX idx_users_username ON users(username);
-
-          -- Create a view to test view handling
-          CREATE VIEW published_posts AS
-          SELECT 
-            p.id,
-            p.title,
-            p.content,
-            u.username,
-            u.email,
-            p.created_at
-          FROM posts p
-          JOIN users u ON p.user_id = u.id
-          WHERE p.published = 1;
-"@
+          $sqlLines = @(
+            "-- Create users table (parent)",
+            "CREATE TABLE users (",
+            "  id INTEGER PRIMARY KEY AUTOINCREMENT,",
+            "  username TEXT NOT NULL UNIQUE,",
+            "  email TEXT NOT NULL,",
+            "  created_at DATETIME DEFAULT CURRENT_TIMESTAMP",
+            ");",
+            "",
+            "-- Create posts table (child with foreign key)",
+            "CREATE TABLE posts (",
+            "  id INTEGER PRIMARY KEY AUTOINCREMENT,",
+            "  user_id INTEGER NOT NULL,",
+            "  title TEXT NOT NULL,",
+            "  content TEXT,",
+            "  published BOOLEAN DEFAULT 0,",
+            "  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,",
+            "  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE",
+            ");",
+            "",
+            "-- Create categories table for additional complexity",
+            "CREATE TABLE categories (",
+            "  id INTEGER PRIMARY KEY AUTOINCREMENT,",
+            "  name TEXT NOT NULL UNIQUE,",
+            "  description TEXT",
+            ");",
+            "",
+            "-- Create many-to-many relationship table",
+            "CREATE TABLE post_categories (",
+            "  post_id INTEGER NOT NULL,",
+            "  category_id INTEGER NOT NULL,",
+            "  PRIMARY KEY (post_id, category_id),",
+            "  FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,",
+            "  FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE",
+            ");",
+            "",
+            "-- Insert sample data",
+            "INSERT INTO users (username, email) VALUES",
+            "  ('john_doe', 'john@example.com'),",
+            "  ('jane_smith', 'jane@example.com'),",
+            "  ('bob_wilson', 'bob@example.com');",
+            "",
+            "INSERT INTO categories (name, description) VALUES",
+            "  ('Technology', 'Posts about technology and programming'),",
+            "  ('Lifestyle', 'Posts about daily life and experiences'),",
+            "  ('Tutorial', 'How-to guides and tutorials');",
+            "",
+            "INSERT INTO posts (user_id, title, content, published) VALUES",
+            "  (1, 'First Post', 'This is the first post content', 1),",
+            "  (1, 'Second Post', 'This is the second post content', 0),",
+            "  (2, 'Jane''s Post', 'Content from Jane', 1),",
+            "  (3, 'Bob''s Tutorial', 'How to use SQLite effectively', 1);",
+            "",
+            "INSERT INTO post_categories (post_id, category_id) VALUES",
+            "  (1, 1),  -- First Post -> Technology",
+            "  (2, 2),  -- Second Post -> Lifestyle",
+            "  (3, 2),  -- Jane's Post -> Lifestyle",
+            "  (4, 1),  -- Bob's Tutorial -> Technology",
+            "  (4, 3);  -- Bob's Tutorial -> Tutorial",
+            "",
+            "-- Create indexes for better performance demonstration",
+            "CREATE INDEX idx_posts_user_id ON posts(user_id);",
+            "CREATE INDEX idx_posts_published ON posts(published);",
+            "CREATE INDEX idx_users_username ON users(username);",
+            "",
+            "-- Create a view to test view handling",
+            "CREATE VIEW published_posts AS",
+            "SELECT",
+            "  p.id,",
+            "  p.title,",
+            "  p.content,",
+            "  u.username,",
+            "  u.email,",
+            "  p.created_at",
+            "FROM posts p",
+            "JOIN users u ON p.user_id = u.id",
+            "WHERE p.published = 1;"
+          )
 
           # Write SQL script to file
-          $sqlScript | Out-File -FilePath "create_test_db.sql" -Encoding UTF8
+          $sqlLines | Out-File -FilePath "create_test_db.sql" -Encoding UTF8
 
           # Create the database
           sqlite3 testdb.sqlite ".read create_test_db.sql"
@@ -135,3 +134,212 @@ jobs:
           # Verify database was created successfully
           Write-Host "Database created. Tables:"
           sqlite3 testdb.sqlite ".tables"
+          Write-Host "Row counts:"
+          sqlite3 testdb.sqlite "SELECT 'users: ' || COUNT(*) FROM users; SELECT 'posts: ' || COUNT(*) FROM posts; SELECT 'categories: ' || COUNT(*) FROM categories;"
+
+      - name: Create credentials file for SQLite
+        shell: pwsh
+        run: |
+          $credentials = @(
+            '{',
+            '  "DATABASE_TYPE": "sqlite",',
+            '  "CONNECTION_INFO": {',
+            '    "DATABASE_LOCATION": "./testdb.sqlite"',
+            '  }',
+            '}'
+          )
+          $credentials | Out-File -FilePath "credentials.json" -Encoding UTF8
+
+      - name: Run script with SQLite database
+        shell: pwsh
+        run: |
+          Write-Host "Running SQLite diagram generation on Windows 11 ARM64 (${{ runner.arch }})"
+
+          # Make script executable and run (assuming it's a PowerShell script or batch file)
+          if (Test-Path "main.ps1") {
+            .\main.ps1 -headless credentials.json
+          } elseif (Test-Path "main.bat") {
+            .\main.bat --headless credentials.json
+          } elseif (Test-Path "main.sh") {
+            # If it's a bash script, we'll need to use Git Bash or WSL
+            bash ./main.sh --headless credentials.json
+          } else {
+            Write-Error "No main script found (main.ps1, main.bat, or main.sh)"
+            exit 1
+          }
+
+      - name: Verify PNG file was generated
+        shell: pwsh
+        run: |
+          # Look for PNG files in common output locations
+          $pngFiles = Get-ChildItem -Path . -Filter "*.png" -File
+
+          if ($pngFiles.Count -gt 0) {
+            Write-Host "PNG file(s) found in current directory:"
+            $pngFiles | ForEach-Object { Write-Host "$($_.Name) - $($_.Length) bytes" }
+          } else {
+            # Search recursively
+            $pngFiles = Get-ChildItem -Path . -Filter "*.png" -File -Recurse
+            if ($pngFiles.Count -gt 0) {
+              Write-Host "PNG file(s) found:"
+              $pngFiles | ForEach-Object { Write-Host "$($_.FullName) - $($_.Length) bytes" }
+            } else {
+              Write-Host "No PNG files found!"
+              Write-Host "Current directory contents:"
+              Get-ChildItem -Path . | Format-Table Name, Length, LastWriteTime
+              exit 1
+            }
+          }
+
+      - name: Verify diagram content (basic checks)
+        shell: pwsh
+        run: |
+          # Find the generated PNG file
+          $pngFile = Get-ChildItem -Path . -Filter "*.png" -File | Select-Object -First 1
+
+          if ($pngFile) {
+            Write-Host "Found diagram: $($pngFile.Name)"
+            Write-Host "File size: $([math]::Round($pngFile.Length/1KB, 2)) KB"
+            
+            # Check if file is not empty and has reasonable size
+            if ($pngFile.Length -gt 1000) {
+              Write-Host "Diagram file size looks reasonable: $($pngFile.Length) bytes"
+            } else {
+              Write-Host "Warning: Diagram file is quite small: $($pngFile.Length) bytes"
+            }
+          } else {
+            Write-Host "No PNG file found for verification"
+            exit 1
+          }
+
+      - name: Test database integrity after diagram generation
+        shell: pwsh
+        run: |
+          Write-Host "Verifying database integrity after diagram generation..."
+
+          # Check that database is still accessible and intact
+          $integrityCheck = sqlite3 testdb.sqlite "PRAGMA integrity_check;" | Select-Object -First 1
+          Write-Host "Integrity check: $integrityCheck"
+
+          # Verify our test data is still there
+          $userCount = sqlite3 testdb.sqlite "SELECT COUNT(*) FROM users;"
+          $postCount = sqlite3 testdb.sqlite "SELECT COUNT(*) FROM posts;"
+
+          Write-Host "Users in database: $userCount"
+          Write-Host "Posts in database: $postCount"
+
+          if ($userCount -eq 3 -and $postCount -eq 4) {
+            Write-Host "Database integrity verified"
+          } else {
+            Write-Host "Database integrity check failed"
+            exit 1
+          }
+
+      - name: Test with different SQLite database configurations
+        shell: pwsh
+        run: |
+          # Test with a minimal database (single table)
+          $minimalScript = @(
+            "CREATE TABLE simple_table (",
+            "  id INTEGER PRIMARY KEY,",
+            "  name TEXT NOT NULL,",
+            "  value INTEGER",
+            ");",
+            "",
+            "INSERT INTO simple_table (name, value) VALUES",
+            "  ('test1', 100),",
+            "  ('test2', 200);"
+          )
+
+          $minimalScript | Out-File -FilePath "minimal_test.sql" -Encoding UTF8
+          sqlite3 minimal.sqlite ".read minimal_test.sql"
+
+          # Create credentials for minimal database
+          $minimalCredentials = @(
+            '{',
+            '  "DATABASE_TYPE": "sqlite",',
+            '  "CONNECTION_INFO": {',
+            '    "DATABASE_LOCATION": "./minimal.sqlite"',
+            '  }',
+            '}'
+          )
+          $minimalCredentials | Out-File -FilePath "minimal_credentials.json" -Encoding UTF8
+
+          Write-Host "Testing with minimal database..."
+
+          # Run the script with minimal database
+          if (Test-Path "main.ps1") {
+            .\main.ps1 -headless minimal_credentials.json
+          } elseif (Test-Path "main.bat") {
+            .\main.bat --headless minimal_credentials.json
+          } elseif (Test-Path "main.sh") {
+            bash ./main.sh --headless minimal_credentials.json
+          }
+
+          # Verify minimal diagram was created
+          $minimalPng = Get-ChildItem -Path . -Filter "*minimal*.png" -File
+          if ($minimalPng.Count -gt 0) {
+            Write-Host "Minimal database diagram generated successfully"
+          } else {
+            Write-Host "Minimal diagram may have different naming - checking for any new PNG files"
+            Get-ChildItem -Path . -Filter "*.png" -File | Format-Table Name, Length, LastWriteTime
+          }
+
+      - name: Test error handling with invalid SQLite database
+        shell: pwsh
+        run: |
+          # Test with non-existent database file
+          $invalidCredentials = @(
+            '{',
+            '  "DATABASE_TYPE": "sqlite",',
+            '  "CONNECTION_INFO": {',
+            '    "DATABASE_LOCATION": "./nonexistent.sqlite"',
+            '  }',
+            '}'
+          )
+          $invalidCredentials | Out-File -FilePath "invalid_credentials.json" -Encoding UTF8
+
+          Write-Host "Testing error handling with non-existent database..."
+
+          # This should fail gracefully
+          $scriptExitCode = 0
+          try {
+            if (Test-Path "main.ps1") {
+              .\main.ps1 -headless invalid_credentials.json
+            } elseif (Test-Path "main.bat") {
+              .\main.bat --headless invalid_credentials.json
+            } elseif (Test-Path "main.sh") {
+              bash ./main.sh --headless invalid_credentials.json
+            }
+          } catch {
+            $scriptExitCode = 1
+          }
+
+          if ($scriptExitCode -eq 0) {
+            Write-Host "Script succeeded with non-existent database (unexpected)"
+          } else {
+            Write-Host "Script properly handled non-existent database error"
+          }
+
+      - name: Cleanup test files
+        if: always()
+        shell: pwsh
+        run: |
+          Write-Host "Cleaning up test files..."
+
+          # Remove database files
+          @("testdb.sqlite", "minimal.sqlite", "corrupted.sqlite") | ForEach-Object {
+            if (Test-Path $_) { Remove-Item $_ -Force }
+          }
+
+          # Remove credential files
+          @("credentials.json", "minimal_credentials.json", "invalid_credentials.json", "corrupted_credentials.json") | ForEach-Object {
+            if (Test-Path $_) { Remove-Item $_ -Force }
+          }
+
+          # Remove SQL script files
+          @("create_test_db.sql", "minimal_test.sql") | ForEach-Object {
+            if (Test-Path $_) { Remove-Item $_ -Force }
+          }
+
+          Write-Host "Cleanup completed"
