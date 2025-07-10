@@ -1,0 +1,27 @@
+name: Windows PostgreSQL System Tests
+on:
+  workflow_call:
+    inputs:
+      os-matrix:
+        description: "OS matrix configuration as JSON string"
+        required: true
+        type: string
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include: ${{ fromJson(inputs.os-matrix) }}
+    steps:
+      - name: Debug runner specs
+        shell: pwsh
+        run: |
+          Write-Host "Runner: ${{ runner.os }} ${{ runner.arch }}"
+          Write-Host "Matrix OS: ${{ matrix.os }}"
+          Write-Host "CPU cores: $((Get-CimInstance Win32_ComputerSystem).NumberOfLogicalProcessors)"
+          Write-Host "Memory: $([math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory/1GB, 2)) GB"
+          Write-Host "Processor: $((Get-CimInstance Win32_Processor).Name)"
+          Write-Host "Architecture: $env:PROCESSOR_ARCHITECTURE"
+          Write-Host "Windows Version: $((Get-CimInstance Win32_OperatingSystem).Version)"
+      
+      
