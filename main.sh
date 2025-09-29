@@ -12,6 +12,7 @@ source "$SCRIPT_DIR/lib/validate_config.sh"
 source "$SCRIPT_DIR/lib/interactive_mode_controller.sh"
 
 cleanup() {
+    echo
     tput cnorm  # restore cursor in the event that the user quits while cursor is hidden
     rm -f "$OUTPUT_FILE"
     rm -rf "$SCRIPT_DIR/mongo_collections"
