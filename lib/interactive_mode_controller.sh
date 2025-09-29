@@ -48,33 +48,33 @@ show_database_menu() {
 
     while true; do
         read -rsn1 input
-        # -r: raw (don't interpret backslashes)
-        # -s: silent (don't echo)
-        # -n1: read exactly 1 character
 
         case $input in 
             $'\x1b')  # ESC sequence (arrow keys start with this)
-                read -rsn2 input  
-                case $input in 
-                    '[A') # up arrow
-                        ((selected--))
-                        if [ $selected -lt 0 ]; then  
-                            selected=$((total - 1))  
-                        fi
+                read -rsn1 -t 0.01 input  # Add small timeout
+                if [[ $input == "[" ]]; then
+                    read -rsn1 -t 0.01 input
+                    case $input in 
+                        'A') # up arrow
+                            ((selected--))
+                            if [ $selected -lt 0 ]; then  
+                                selected=$((total - 1))  
+                            fi
 
-                        tput cuu "${total}"
-                        draw_menu
-                        ;;
-                    '[B') # down arrow 
-                        ((selected++))
-                        if [ $selected -ge "${total}" ]; then
-                            selected=0
-                        fi
+                            tput cuu "${total}"
+                            draw_menu
+                            ;;
+                        'B') # down arrow 
+                            ((selected++))
+                            if [ $selected -ge "${total}" ]; then
+                                selected=0
+                            fi
 
-                        tput cuu "${total}"
-                        draw_menu
-                        ;;
-                esac
+                            tput cuu "${total}"
+                            draw_menu
+                            ;;
+                    esac
+                fi
                 ;;
             '') # enter key
                 DATABASE_TYPE="${keys[$selected]}"
@@ -87,6 +87,9 @@ show_database_menu() {
                 ;;
         esac
     done
+    
+    # show cursor again
+    tput cnorm
 }
 
 get_database_config() {
